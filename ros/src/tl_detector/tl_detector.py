@@ -273,7 +273,7 @@ class TLDetector(object):
             car_position = self.get_closest_waypoint(self.pose.pose)
             for light in self.lights:
                 light_wp = self.get_closest_waypoint(light.pose.pose)
-                if light_wp > car_position and light_wp-car_position <  200: 
+                if light_wp > car_position and light_wp-car_position <  800: #how ahead to  look
                     #light is in front and within 200 waypts and res
                     dis = (self.pose.pose.position.x-light.pose.pose.position.x)**2+(self.pose.pose.position.y-light.pose.pose.position.y)**2
                     if dis < dis_closest_light_ahead:

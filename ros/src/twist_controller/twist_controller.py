@@ -79,7 +79,7 @@ class Controller(object):
             steering         = self.pid_steering.update(steering_error, delta_t)
             steering         = self.lpf_post.filter(steering)
 
-            rospy.logwarn('des: ' + str(desired_linear_velocity) + '   cur: ' + str(current_linear_velocity) + '   str: ' + str(steering))
+            #rospy.logwarn('des: ' + str(desired_linear_velocity) + '   cur: ' + str(current_linear_velocity) + '   str: ' + str(steering))
    
             return throttle, brake, steering
 
