@@ -77,32 +77,31 @@ class WaypointUpdater(object):
 
             # Set velocity for waypoints
             # Needs to bring car to stop and resume driving based on light
-            target_speed = 25.0  #m/s
+            target_speed = 20  #m/s
             if hasattr(self, 'set_speed'):
                 target_speed = self.set_speed
             
             # code to set velocity based on traffic light 
-            # if there is a traffic light index which is within 30 wps of car position, car needs to be 
-            # stopped immediately
-            # if traffic light is between 30 and 150 wps ahead bring car to halt by traffic_light_wp-30
-            # if above two conditions are not met, then go full speed 
-           
+
+            # if traffic light is between 40 and 200 wps ahead bring car to halt by traffic_light_wp-30
             # red traffic light ahead and in range of visibility, need to slow down and halt  
             rospy.logwarn('TL: ' + str(self.traffic_waypoint) + ' NI: ' + str(next_index) + 
                           '  curr_speed: ' + str(self.car_current_linear_velocity)) 
             if (self.traffic_waypoint != -1 and self.traffic_waypoint >  next_index and 
-                    self.traffic_waypoint -  next_index > 60 and self.traffic_waypoint -  next_index < 150):
-                    
+                    self.traffic_waypoint -  next_index > 40 and self.traffic_waypoint -  next_index < 200):
+              
+                rospy.logwarn('deceleration rqd!!!')                   
                 prev_wp_speed = self.car_current_linear_velocity
                 if prev_wp_speed < 1e-3:
+                    rospy.logwarn('Car is stationary. Nothing to decelerate!!!')                   
                     prev_wp_speed = 0.0
             
-                stopping_distance = self.distance(wpts, next_index, self.traffic_waypoint-60)
-                accel = - self.car_current_linear_velocity**2 / (2*stopping_distance)
+                stopping_distance = self.distance(wpts, next_index, self.traffic_waypoint-30)
+                accel = - min(target_speed**2 / (2*stopping_distance), 10.0)
 
                 for i in range(next_index, next_index + LOOKAHEAD_WPS):
-                    index = i % len(wpts)
-                    lane.waypoints.append(wpts[index])
+                    #index = i % len(wpts)
+                    lane.waypoints.append(wpts[i])
                     dis_from_prev_wp = self.distance(wpts, i-1, i)
                     wp_speed = math.sqrt(max(0.0, prev_wp_speed**2+2*accel*dis_from_prev_wp))
                     if wp_speed < 1e-3:
@@ -114,12 +113,16 @@ class WaypointUpdater(object):
                 self.final_waypoints_pub.publish(lane)
                 return
 
-            if self.traffic_waypoint != -1 and self.traffic_waypoint >  next_index and self.traffic_waypoint -  next_index <= 60:
+            # there is a red light ahead and within range[0,40] wp in front of car then stop
+            if (self.traffic_waypoint != -1 and self.traffic_waypoint >  next_index and
+                self.traffic_waypoint -  next_index <= 40):
                 # case for immediate stop, car is very close to a red light
+                rospy.logwarn('Immediate halt rqd!!!')                   
                 wp_speed = 0.0
             else:
                 # press ahead at target velocity
-                # either there is no red traffic light ahead or it is too far off
+                # No condition to slow down or halt met
+                rospy.logwarn('press ahead!!!')                   
                 wp_speed = target_speed
 
             for i in range(next_index, next_index + LOOKAHEAD_WPS):
@@ -167,7 +170,7 @@ class WaypointUpdater(object):
     def distance(self, waypoints, wp1, wp2):
         dist = 0.0
         dl   = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-        for i in range(wp1, wp2+1):
+        for i in range(wp1+1, wp2+1):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1   = i
         return dist

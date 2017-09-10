@@ -269,7 +269,7 @@ class TLDetector(object):
         best_light_wp = -1
         best_light_state = TrafficLight.UNKNOWN
         dis_closest_light_ahead = float('inf')
-        if(self.pose):
+        if(self.pose and self.waypoints):
             car_position = self.get_closest_waypoint(self.pose.pose)
             for light in self.lights:
                 light_wp = self.get_closest_waypoint(light.pose.pose)
