@@ -98,6 +98,7 @@ class WaypointUpdater(object):
             
                 stopping_distance = self.distance(wpts, next_index, self.traffic_waypoint-30)
                 accel = - min(target_speed**2 / (2*stopping_distance), 10.0)
+                #rospy.logwarn('accl: ' + str(accel))
 
                 for i in range(next_index, next_index + LOOKAHEAD_WPS):
                     #index = i % len(wpts)
@@ -120,8 +121,8 @@ class WaypointUpdater(object):
                 rospy.logwarn('Immediate halt rqd!!!')                   
                 wp_speed = 0.0
             else:
+                # None of the conditions to slow down or halt met
                 # press ahead at target velocity
-                # No condition to slow down or halt met
                 rospy.logwarn('press ahead!!!')                   
                 wp_speed = target_speed
 
