@@ -20,10 +20,10 @@ class Controller(object):
 
         self.last_time = None
 
-        self.pid_control  = PID(5.0, 0.1, 0.02)
-        self.pid_steering = PID(15.0, 1.2, 0.1)
+        self.pid_control  = PID(5.0, 0.3, 0.02)
+        self.pid_steering = PID(12.0, 1.0, 0.05)
 
-        self.lpf_pre  = LowPassFilter(0.2, 0.1)
+        self.lpf_pre  = LowPassFilter(0.1, 0.1)
         self.lpf_post = LowPassFilter(0.4, 0.1)
 
         self.yaw_control = YawController(wheel_base      = wheel_base, 
@@ -60,8 +60,13 @@ class Controller(object):
             velocity_error = desired_linear_velocity - current_linear_velocity
             control        = self.pid_control.update(velocity_error, delta_t)
 
-            throttle = 100.0 * max(0.0, control)
-            brake    = 100.0 * max(0.0, -control) + self.brake_deadband
+            throttle = 0.0
+            brake    = 0.0
+            if control > 0:
+            	throttle = max(0.0, control)
+            else:
+                self.pid_control.reset()
+            	brake = 100.0 * max(0.0, -control) + self.brake_deadband
 
             desired_steering = self.yaw_control.get_steering(desired_linear_velocity, 
                                                              desired_angular_velocity, 
@@ -77,10 +82,12 @@ class Controller(object):
             steering = self.pid_steering.update(steering_error, delta_t)
             steering = self.lpf_post.filter(steering)
 
-            rospy.logwarn(' des: ' + str(desired_linear_velocity) + 
-                          ' cur: ' + str(current_linear_velocity) + 
-                          ' th: ' + str(throttle) +
-                          ' br: ' + str(brake))
+            rospy.logwarn('desired:  ' + str(desired_linear_velocity))
+            rospy.logwarn('current:  ' + str(current_linear_velocity)) 
+            rospy.logwarn('error:    ' + str(velocity_error))
+            rospy.logwarn('throttle: ' + str(throttle))
+            rospy.logwarn('brake:    ' + str(brake))
+            rospy.logwarn('')
    
             return throttle, brake, steering
 
