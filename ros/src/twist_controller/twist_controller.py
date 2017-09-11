@@ -8,29 +8,29 @@ from   std_msgs.msg   import Float32
 class Controller(object):
 
     def __init__(self):
+        self.brake_deadband = rospy.get_param('~brake_deadband',  0.2)
         max_lat_accel       = rospy.get_param('~max_lat_accel',   3.0)
         max_steer_angle     = rospy.get_param('~max_steer_angle', 8.0)        
         steer_ratio         = rospy.get_param('~steer_ratio',     2.67)
         wheel_base          = rospy.get_param('~wheel_base',      3.0)
-        self.brake_deadband = rospy.get_param('~brake_deadband',  0.2)
-
-        self.last_time    = None
-
-        self.pid_control  = PID(5.0, 0.1, 0.02)
-        self.pid_steering = PID(15.0, 1.2, 0.1)
 
         rospy.Subscriber('/kp', Float32, self.kp_cb)
         rospy.Subscriber('/ki', Float32, self.ki_cb)
         rospy.Subscriber('/kd', Float32, self.kd_cb)
 
-        self.lpf_pre      = LowPassFilter(0.2, 0.1)
-        self.lpf_post     = LowPassFilter(0.4, 0.1)
+        self.last_time = None
 
-        self.yaw_control  = YawController(wheel_base=wheel_base, 
-                                          steer_ratio=steer_ratio,
-                                          min_speed=0.0, 
-                                          max_lat_accel=max_lat_accel,
-                                          max_steer_angle=max_steer_angle)    
+        self.pid_control  = PID(5.0, 0.1, 0.02)
+        self.pid_steering = PID(15.0, 1.2, 0.1)
+
+        self.lpf_pre  = LowPassFilter(0.2, 0.1)
+        self.lpf_post = LowPassFilter(0.4, 0.1)
+
+        self.yaw_control = YawController(wheel_base      = wheel_base, 
+                                         steer_ratio     = steer_ratio,
+                                         min_speed       = 0.0, 
+                                         max_lat_accel   = max_lat_accel,
+                                         max_steer_angle = max_steer_angle)    
 
 
     def control(self, **kwargs):
@@ -48,20 +48,20 @@ class Controller(object):
         current_linear_velocity  = cv_l.x
         current_angular_velocity = cv_a.z        
 
-        
         if dbw_enabled is False:
             self.pid_control.reset()
             self.pid_steering.reset()
            
         if self.last_time is not None:
-            time             = rospy.get_time()
-            delta_t          = time - self.last_time
-            self.last_time   = time
+            time           = rospy.get_time()
+            delta_t        = time - self.last_time
+            self.last_time = time
 
-            velocity_error   = desired_linear_velocity - current_linear_velocity
-            control          = self.pid_control.update(velocity_error, delta_t)
-            throttle         = max(0.0, control)
-            brake            = max(0.0, -control) + self.brake_deadband
+            velocity_error = desired_linear_velocity - current_linear_velocity
+            control        = self.pid_control.update(velocity_error, delta_t)
+
+            throttle = 100.0 * max(0.0, control)
+            brake    = 100.0 * max(0.0, -control) + self.brake_deadband
 
             desired_steering = self.yaw_control.get_steering(desired_linear_velocity, 
                                                              desired_angular_velocity, 
@@ -71,16 +71,16 @@ class Controller(object):
                                                              current_angular_velocity,
                                                              current_linear_velocity)
 
-            steering_error   = desired_steering - current_steering
-            steering_error   = self.lpf_pre.filter(steering_error)
+            steering_error = desired_steering - current_steering
+            steering_error = self.lpf_pre.filter(steering_error)
 
-            #rospy.logwarn('Steering error: ' + str(steering_error))
+            steering = self.pid_steering.update(steering_error, delta_t)
+            steering = self.lpf_post.filter(steering)
 
-            steering         = self.pid_steering.update(steering_error, delta_t)
-            steering         = self.lpf_post.filter(steering)
-
-            rospy.logwarn('des: ' + str(desired_linear_velocity) + '   cur: ' + str(current_linear_velocity) + 
-                            '  control: ' + str(control) + '  steering: ' + str(steering))
+            rospy.logwarn(' des: ' + str(desired_linear_velocity) + 
+                          ' cur: ' + str(current_linear_velocity) + 
+                          ' th: ' + str(throttle) +
+                          ' br: ' + str(brake))
    
             return throttle, brake, steering
 

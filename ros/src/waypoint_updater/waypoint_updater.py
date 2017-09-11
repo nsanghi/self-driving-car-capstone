@@ -3,13 +3,14 @@
 import rospy
 import math
 import tf
-from   geometry_msgs.msg import PoseStamped
-from   geometry_msgs.msg import TwistStamped
+from   geometry_msgs.msg import PoseStamped, TwistStamped
 from   styx_msgs.msg     import Lane, Waypoint
 from   std_msgs.msg      import Int32, Float32
 
 
 LOOKAHEAD_WPS = 800
+MIN_BRAKE_WP  = 40
+MAX_BRAKE_WP  = 200
 
 
 class WaypointUpdater(object):
@@ -17,19 +18,17 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose',      PoseStamped, self.current_pose_cb)
-        rospy.Subscriber('/base_waypoints',    Lane,        self.base_waypoints_cb)
-        rospy.Subscriber('/traffic_waypoint',  Int32,       self.traffic_waypoint_cb)
-        rospy.Subscriber('/obstacle_waypoint', Int32,       self.obstacle_waypoint_cb)
-        rospy.Subscriber('/current_velocity',  TwistStamped,self.current_velocity_cb)
-
-        # For testing and manual topic control
-        rospy.Subscriber('/set_speed', Float32, self.set_speed_cb)
+        rospy.Subscriber('/current_pose',      PoseStamped,  self.current_pose_cb)
+        rospy.Subscriber('/base_waypoints',    Lane,         self.base_waypoints_cb)
+        rospy.Subscriber('/traffic_waypoint',  Int32,        self.traffic_waypoint_cb)
+        rospy.Subscriber('/obstacle_waypoint', Int32,        self.obstacle_waypoint_cb)
+        rospy.Subscriber('/current_velocity',  TwistStamped, self.current_velocity_cb)
+        rospy.Subscriber('/set_speed',         Float32,      self.set_speed_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
         
-        self.traffic_waypoint = -1 #initialized to -1
         self.car_current_linear_velocity = 0.0
+        self.traffic_waypoint            = -1 
 
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
@@ -38,7 +37,9 @@ class WaypointUpdater(object):
 
 
     def loop(self):
+
         if hasattr(self, 'base_waypoints') and hasattr(self, 'current_pose'):
+
             lane                 = Lane()
             lane.header.stamp    = rospy.Time().now()
             lane.header.frame_id = '/world'
@@ -57,11 +58,10 @@ class WaypointUpdater(object):
                     nearest_index    = i
                     nearest_distance = d
 
-
-            # Nimish's work...
-            next_index = nearest_index
-            
-            heading = math.atan2((wpts[nearest_index].pose.pose.position.y-p.y),(wpts[nearest_index].pose.pose.position.y-p.x))
+            # Ensure heading
+            delta_py = wpts[nearest_index].pose.pose.position.y - p.y
+            delta_px = wpts[nearest_index].pose.pose.position.y - p.x
+            heading  = math.atan2(delta_py, delta_px)
             x = self.current_pose.pose.orientation.x
             y = self.current_pose.pose.orientation.y
             z = self.current_pose.pose.orientation.z
@@ -72,69 +72,37 @@ class WaypointUpdater(object):
             if angle > math.pi/4:
                 nearest_index += 1
 
-            #rospy.logwarn('NI: ' + str(nearest_index))
-
-
-            # Set velocity for waypoints
-            # Needs to bring car to stop and resume driving based on light
-            target_speed = 20  #m/s
+            # Handling of traffic light information
+            tw = self.traffic_waypoint
+            ni = nearest_index
+            ts = 0.0
+            ss = 0.0
             if hasattr(self, 'set_speed'):
-                target_speed = self.set_speed
-            
-            # code to set velocity based on traffic light 
+                ts = self.set_speed
 
-            # if traffic light is between 40 and 200 wps ahead bring car to halt by traffic_light_wp-30
-            # red traffic light ahead and in range of visibility, need to slow down and halt  
-            rospy.logwarn('TL: ' + str(self.traffic_waypoint) + ' NI: ' + str(next_index) + 
-                          '  curr_speed: ' + str(self.car_current_linear_velocity)) 
-            if (self.traffic_waypoint != -1 and self.traffic_waypoint >  next_index and 
-                    self.traffic_waypoint -  next_index > 40 and self.traffic_waypoint -  next_index < 200):
-              
-                rospy.logwarn('deceleration rqd!!!')                   
-                prev_wp_speed = self.car_current_linear_velocity
-                if prev_wp_speed < 1e-3:
-                    rospy.logwarn('Car is stationary. Nothing to decelerate!!!')                   
-                    prev_wp_speed = 0.0
-            
-                stopping_distance = self.distance(wpts, next_index, self.traffic_waypoint-30)
-                accel = - min(target_speed**2 / (2*stopping_distance), 10.0)
-                #rospy.logwarn('accl: ' + str(accel))
+            # If we are too close to bother slowing
+            if tw != -1 and tw - ni < MIN_BRAKE_WP:
+                ss = ts
 
-                for i in range(next_index, next_index + LOOKAHEAD_WPS):
-                    #index = i % len(wpts)
-                    lane.waypoints.append(wpts[i])
-                    dis_from_prev_wp = self.distance(wpts, i-1, i)
-                    wp_speed = math.sqrt(max(0.0, prev_wp_speed**2+2*accel*dis_from_prev_wp))
-                    if wp_speed < 1e-3:
-                        wp_speed = 0.0
-                    prev_wp_speed = wp_speed
-                    
-                    lane.waypoints[-1].twist.twist.linear.x = wp_speed
-                
-                self.final_waypoints_pub.publish(lane)
-                return
+            # If we are in range to come to a halt (horizon of range is how many points ahead we look at)
+            elif tw != -1 and tw - ni < MAX_BRAKE_WP:
+                # Probably should actually taper the velocity for these waypoints
+                ss = 0.0
 
-            # there is a red light ahead and within range[0,40] wp in front of car then stop
-            if (self.traffic_waypoint != -1 and self.traffic_waypoint >  next_index and
-                self.traffic_waypoint -  next_index <= 40):
-                # case for immediate stop, car is very close to a red light
-                rospy.logwarn('Immediate halt rqd!!!')                   
-                wp_speed = 0.0
+            # Otherwise we don't have indication of a red light
             else:
-                # None of the conditions to slow down or halt met
-                # press ahead at target velocity
-                rospy.logwarn('press ahead!!!')                   
-                wp_speed = target_speed
+                ss = ts
 
-            for i in range(next_index, next_index + LOOKAHEAD_WPS):
+            # Create forward list of waypoints 
+            for i in range(nearest_index, nearest_index + LOOKAHEAD_WPS):
                 index = i % len(wpts)
                 lane.waypoints.append(wpts[index])
-                lane.waypoints[-1].twist.twist.linear.x = wp_speed
-            
-            self.final_waypoints_pub.publish(lane)
-            return
-            
 
+            # Set the speed
+            for i in range(len(lane.waypoints)):
+                lane.waypoints[i].twist.twist.linear.x = ss
+
+            self.final_waypoints_pub.publish(lane)
 
 
     def current_pose_cb(self, msg):
@@ -182,3 +150,4 @@ if __name__ == '__main__':
         WaypointUpdater()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start waypoint updater node.')
+
