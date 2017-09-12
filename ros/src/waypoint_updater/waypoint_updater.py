@@ -10,8 +10,8 @@ from   std_msgs.msg      import Int32, Float32
 
 
 LOOKAHEAD_WPS = 800
-MIN_BRAKE_WP  = 40
-MAX_BRAKE_WP  = 200
+MIN_BRAKE_WP  = 25
+MAX_BRAKE_WP  = 110
 
 
 class WaypointUpdater(object):
