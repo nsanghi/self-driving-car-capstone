@@ -8,23 +8,24 @@ from   std_msgs.msg   import Float32
 class Controller(object):
 
     def __init__(self):
+
         self.brake_deadband = rospy.get_param('~brake_deadband',  0.2)
         max_lat_accel       = rospy.get_param('~max_lat_accel',   3.0)
         max_steer_angle     = rospy.get_param('~max_steer_angle', 8.0)        
         steer_ratio         = rospy.get_param('~steer_ratio',     2.67)
         wheel_base          = rospy.get_param('~wheel_base',      3.0)
 
-        rospy.Subscriber('/kp', Float32, self.kp_cb)
-        rospy.Subscriber('/ki', Float32, self.ki_cb)
-        rospy.Subscriber('/kd', Float32, self.kd_cb)
+        #rospy.Subscriber('/kp', Float32, self.kp_cb)
+        #rospy.Subscriber('/ki', Float32, self.ki_cb)
+        #rospy.Subscriber('/kd', Float32, self.kd_cb)
 
         self.last_time = None
 
-        self.pid_control  = PID(5.0, 0.3, 0.02)
-        self.pid_steering = PID(12.0, 1.0, 0.05)
+        self.pid_control  = PID(5.0, 0.3, 0.0)
+        self.pid_steering = PID(10.0, 1.0, 0.0)
 
         self.lpf_pre  = LowPassFilter(0.1, 0.1)
-        self.lpf_post = LowPassFilter(0.4, 0.1)
+        self.lpf_post = LowPassFilter(0.5, 0.1)
 
         self.yaw_control = YawController(wheel_base      = wheel_base, 
                                          steer_ratio     = steer_ratio,
@@ -34,6 +35,7 @@ class Controller(object):
 
 
     def control(self, **kwargs):
+
         dbw_enabled = kwargs['dbw_enabled']
 
         tc_l = kwargs['twist_cmd'].twist.linear
@@ -62,8 +64,10 @@ class Controller(object):
 
             throttle = 0.0
             brake    = 0.0
+
             if control > 0:
             	throttle = max(0.0, control)
+
             else:
                 self.pid_control.reset()
             	brake = 100.0 * max(0.0, -control) + self.brake_deadband

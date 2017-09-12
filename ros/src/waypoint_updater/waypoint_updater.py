@@ -9,14 +9,15 @@ from   styx_msgs.msg     import Lane, Waypoint
 from   std_msgs.msg      import Int32, Float32
 
 
-LOOKAHEAD_WPS = 800
-MIN_BRAKE_WP  = 25
-MAX_BRAKE_WP  = 110
+LOOKAHEAD_WPS  = 800
+MIN_BRAKE_COEF = 1.0
+MAX_BRAKE_COEF = 6.5
 
 
 class WaypointUpdater(object):
 
     def __init__(self):
+
         rospy.init_node('waypoint_updater')
 
         rospy.Subscriber('/current_pose',      PoseStamped,  self.current_pose_cb)
@@ -28,8 +29,10 @@ class WaypointUpdater(object):
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
         
-        self.car_current_linear_velocity = 0.0
-        self.traffic_waypoint            = -1 
+        self.traffic_waypoint = -1 
+        self.current_velocity =  0.0
+        self.max_brake_wps    =  0.0
+        self.slowing          =  False
 
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
@@ -45,8 +48,8 @@ class WaypointUpdater(object):
             lane.header.stamp    = rospy.Time().now()
             lane.header.frame_id = '/world'
 
-            p    = self.current_pose.pose.position
             wpts = self.base_waypoints.waypoints
+            p    = self.current_pose.pose.position
 
             nearest_index    = None
             nearest_distance = float('inf')
@@ -59,36 +62,33 @@ class WaypointUpdater(object):
                     nearest_index    = i
                     nearest_distance = d
 
-            # Ensure heading
-            delta_py = wpts[nearest_index].pose.pose.position.y - p.y
-            delta_px = wpts[nearest_index].pose.pose.position.x - p.x
-            heading  = math.atan2(delta_py, delta_px)
-            x = self.current_pose.pose.orientation.x
-            y = self.current_pose.pose.orientation.y
-            z = self.current_pose.pose.orientation.z
-            w = self.current_pose.pose.orientation.w
-            euler_angles_xyz = tf.transformations.euler_from_quaternion([x, y, z, w])
-            theta = euler_angles_xyz[-1]
-            angle = math.fabs(theta-heading)
-            if angle > math.pi/4:
-                nearest_index += 1
-
             # Handling of traffic light information
             ts = 0.0
-            ss = 0.0
             if hasattr(self, 'set_speed'):
                 ts = self.set_speed
 
+            ss = 0.0
+            tw = self.traffic_waypoint
+            ni = nearest_index
+
+            min_brake_wps = int(MIN_BRAKE_COEF * self.current_velocity)
+
+            if self.slowing == False:
+                self.max_brake_wps = int(MAX_BRAKE_COEF * self.current_velocity)
+
             # If we are too close to bother slowing
-            if self.traffic_waypoint != -1 and self.traffic_waypoint - nearest_index < MIN_BRAKE_WP:
+            if tw != -1 and tw - ni < min_brake_wps:
+                self.slowing = False
                 ss = [ts for i in range(LOOKAHEAD_WPS)]
 
             # If we are in range to come to a halt (horizon of range is how many points ahead we look at)
-            elif self.traffic_waypoint != -1 and self.traffic_waypoint - nearest_index < MAX_BRAKE_WP:
+            elif tw != -1 and tw - ni < self.max_brake_wps:
+                self.slowing = True
                 ss = [0.0 for i in range(LOOKAHEAD_WPS)]
 
             # Otherwise we don't have indication of a red light
             else:
+                self.slowing = False
                 ss = [ts for i in range(LOOKAHEAD_WPS)]
 
             # Create forward list of waypoints 
@@ -108,7 +108,7 @@ class WaypointUpdater(object):
 
 
     def current_velocity_cb(self, msg):
-        self.car_current_linear_velocity = msg.twist.linear.x
+        self.current_velocity = msg.twist.linear.x
 
     def base_waypoints_cb(self, msg):
         self.base_waypoints = msg
@@ -124,23 +124,6 @@ class WaypointUpdater(object):
 
     def set_speed_cb(self, msg):
         self.set_speed = msg.data
-
-
-    def get_waypoint_velocity(self, waypoint):
-        return waypoint.twist.twist.linear.x
-
-
-    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
-        waypoints[waypoint].twist.twist.linear.x = velocity
-
-
-    def distance(self, waypoints, wp1, wp2):
-        dist = 0.0
-        dl   = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-        for i in range(wp1+1, wp2+1):
-            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
-            wp1   = i
-        return dist
 
 
 if __name__ == '__main__':
