@@ -61,7 +61,7 @@ class WaypointUpdater(object):
 
             # Ensure heading
             delta_py = wpts[nearest_index].pose.pose.position.y - p.y
-            delta_px = wpts[nearest_index].pose.pose.position.y - p.x
+            delta_px = wpts[nearest_index].pose.pose.position.x - p.x
             heading  = math.atan2(delta_py, delta_px)
             x = self.current_pose.pose.orientation.x
             y = self.current_pose.pose.orientation.y
