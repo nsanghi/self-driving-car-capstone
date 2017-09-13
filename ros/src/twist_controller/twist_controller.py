@@ -15,10 +15,6 @@ class Controller(object):
         steer_ratio         = rospy.get_param('~steer_ratio',     2.67)
         wheel_base          = rospy.get_param('~wheel_base',      3.0)
 
-        #rospy.Subscriber('/kp', Float32, self.kp_cb)
-        #rospy.Subscriber('/ki', Float32, self.ki_cb)
-        #rospy.Subscriber('/kd', Float32, self.kd_cb)
-
         self.last_time = None
 
         self.pid_control  = PID(5.0, 0.3, 0.0)
@@ -67,10 +63,12 @@ class Controller(object):
 
             if control > 0:
             	throttle = max(0.0, control)
+                rospy.logwarn('Accelerating')
 
             else:
                 self.pid_control.reset()
             	brake = 100.0 * max(0.0, -control) + self.brake_deadband
+                rospy.logwarn('Braking')
 
             desired_steering = self.yaw_control.get_steering(desired_linear_velocity, 
                                                              desired_angular_velocity, 
@@ -86,26 +84,16 @@ class Controller(object):
             steering = self.pid_steering.update(steering_error, delta_t)
             steering = self.lpf_post.filter(steering)
 
-            rospy.logwarn('desired:  ' + str(desired_linear_velocity))
-            rospy.logwarn('current:  ' + str(current_linear_velocity)) 
-            rospy.logwarn('error:    ' + str(velocity_error))
-            rospy.logwarn('throttle: ' + str(throttle))
-            rospy.logwarn('brake:    ' + str(brake))
-            rospy.logwarn('')
+            #rospy.logwarn('desired:  ' + str(desired_linear_velocity))
+            #rospy.logwarn('current:  ' + str(current_linear_velocity)) 
+            #rospy.logwarn('error:    ' + str(velocity_error))
+            #rospy.logwarn('throttle: ' + str(throttle))
+            #rospy.logwarn('brake:    ' + str(brake))
+            #rospy.logwarn('')
    
             return throttle, brake, steering
 
         else:
             self.last_time = rospy.get_time()
             return 0.0, 0.0, 0.0
-
-
-    def kp_cb(self, msg):
-        self.pid_steering.kp = msg.data
-
-    def ki_cb(self, msg):
-        self.pid_steering.ki = msg.data
-
-    def kd_cb(self, msg):
-        self.pid_steering.kd = msg.data
 
