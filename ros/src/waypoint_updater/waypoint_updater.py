@@ -109,6 +109,7 @@ class WaypointUpdater(object):
     def current_velocity_cb(self, msg):
         self.current_velocity = msg.twist.linear.x
 
+
     def base_waypoints_cb(self, msg):
         self.base_waypoints = msg
 
