@@ -62,11 +62,11 @@ class WaypointUpdater(object):
                     nearest_distance = d
 
             # Handling of traffic light information
-            ts = 0.0
-            if hasattr(self, 'set_speed'):
-                ts = self.set_speed
-
             ss = 0.0
+            if hasattr(self, 'set_speed'):
+                ss = self.set_speed
+
+            sp = None
             tw = self.traffic_waypoint
             ni = nearest_index
 
@@ -78,17 +78,17 @@ class WaypointUpdater(object):
             # If we are too close to bother slowing
             if tw != -1 and tw - ni < min_brake_wps:
                 self.slowing = False
-                ss = [ts for i in range(LOOKAHEAD_WPS)]
+                sp = [ss for i in range(LOOKAHEAD_WPS)]
 
             # If we are in range to come to a halt (horizon of range is how many points ahead we look at)
             elif tw != -1 and tw - ni < self.max_brake_wps:
                 self.slowing = True
-                ss = [0.0 for i in range(LOOKAHEAD_WPS)]
+                sp = [0.0 for i in range(LOOKAHEAD_WPS)]
 
             # Otherwise we don't have indication of a red light
             else:
                 self.slowing = False
-                ss = [ts for i in range(LOOKAHEAD_WPS)]
+                sp = [ss for i in range(LOOKAHEAD_WPS)]
 
             # Create forward list of waypoints 
             for i in range(nearest_index, nearest_index + LOOKAHEAD_WPS):
@@ -97,7 +97,7 @@ class WaypointUpdater(object):
 
             # Set the speed
             for i in range(len(lane.waypoints)):
-                lane.waypoints[i].twist.twist.linear.x = ss[i]
+                lane.waypoints[i].twist.twist.linear.x = sp[i]
 
             self.final_waypoints_pub.publish(lane)
 
