@@ -26,7 +26,6 @@ class TLClassifier(object):
 
 
     def get_classification(self, image):
-        #TODO implement light color prediction
         image = cv2.resize(image, (224,224), interpolation=cv2.INTER_NEAREST)
         image = np.expand_dims(image, axis=0)
         image = image.astype(dtype=np.float64, copy=False)
@@ -34,11 +33,12 @@ class TLClassifier(object):
 
         start_time = time.time()
         pred       = self.get_output([image, 0])[0]
-        rospy.logwarn('---{} seconds---'.format(time.time() - start_time))
+
+        #rospy.logwarn('---{} seconds---'.format(time.time() - start_time))
 
         # Get the index with max value that corresponds to the predicted state
         pred = np.argmax(pred)
-        rospy.logwarn('argmax: {}'.format(pred))
+        #rospy.logwarn('argmax: {}'.format(pred))
 
         # Find class based on prediction index (need to confirm labels are correct order)
         if pred == 0:
@@ -54,3 +54,4 @@ class TLClassifier(object):
             state = TrafficLight.YELLOW
 
         return state
+

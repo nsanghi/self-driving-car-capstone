@@ -116,6 +116,7 @@ class WaypointUpdater(object):
 
     def traffic_waypoint_cb(self, msg):
         self.traffic_waypoint = msg.data
+        #rospy.logwarn('WP: ' + str(self.traffic_waypoint))
 
 
     def obstacle_waypoint_cb(self, msg):

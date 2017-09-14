@@ -15,9 +15,6 @@ from   cv_bridge         import CvBridge
 from   light_classification.tl_classifier import TLClassifier
 
 
-STATE_COUNT_THRESHOLD = 3
-
-
 class TLDetector(object):
 
     def __init__(self):
@@ -28,13 +25,13 @@ class TLDetector(object):
         self.camera_image = None
         self.lights       = []
 
+        config_string = rospy.get_param("/traffic_light_config")
+        self.config   = yaml.load(config_string)
+
         sub1 = rospy.Subscriber('/current_pose',           PoseStamped,       self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints',         Lane,              self.waypoints_cb)
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color',            Image,             self.image_cb)
-
-        config_string = rospy.get_param("/traffic_light_config")
-        self.config   = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
@@ -42,10 +39,7 @@ class TLDetector(object):
         self.light_classifier = TLClassifier()
         self.listener         = tf.TransformListener()
 
-        self.state       = TrafficLight.UNKNOWN
-        self.last_state  = TrafficLight.UNKNOWN
-        self.last_wp     = -1
-        self.state_count =  0
+        self.last_wp = -1
 
         rospy.spin()
 
@@ -67,24 +61,16 @@ class TLDetector(object):
         self.camera_image = msg
         light_wp, state   = self.process_traffic_lights()
 
-        if self.state != state:
-            self.state_count = 0
-            self.state       = state
+        rospy.logwarn('S: ' + str(state) + '  WP: ' + str(light_wp))
 
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
-            self.last_state = self.state
-            light_wp        = light_wp if state == TrafficLight.RED else -1
-            self.last_wp    = light_wp
+        if state == TrafficLight.RED or state == TrafficLight.YELLOW:
             self.upcoming_red_light_pub.publish(Int32(light_wp))
-
         else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-
-        self.state_count += 1
+            self.upcoming_red_light_pub.publish(Int32(-1))
 
 
     def distance(self, x1, y1, x2, y2):
-        return math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1))
+        return math.sqrt((x2-x1)**2 + (y2-y1)**2)
 
 
     def get_closest_waypoint(self, pose, waypoints):
@@ -139,25 +125,25 @@ class TLDetector(object):
             rospy.logerr("Failed to find camera to map transform")
 
         # Use tranform and rotation to calculate 2D position of light in image
-        # create an numpy array containing the 3D world point
+        # Create an numpy array containing the 3D world point
         object_point = np.array([[point_in_world.x, point_in_world.y, point_in_world.z]])
 
-        # convert the quaternion returned from lookupTransform into euler rotation
+        # Convert the quaternion returned from lookupTransform into euler rotation
         (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(rot)
 
         rvec = np.array([roll,pitch,yaw])
         tvec = np.array(trans)
 
-        # create the camera matrix from the focal lengths and principal point
+        # Create the camera matrix from the focal lengths and principal point
         camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
 
-        # distortion coefficients - currently not available but per slack will be published soon
+        # Distortion coefficients - currently not available but per slack will be published soon
         dist_coeffs = None
 
-        # use OpenCv projectPoints to find the corresponding point in image from 3D world point
+        # Use OpenCv projectPoints to find the corresponding point in image from 3D world point
         img_point, _ = cv2.projectPoints(object_point, rvec, tvec, camera_matrix, dist_coeffs)
 
-        # cast to int to get a pixel value
+        # Cast to int to get a pixel value
         pixels = np.int32(img_point).reshape(-1,2)
 
         x = pixels[0][0]
@@ -178,7 +164,7 @@ class TLDetector(object):
 
         #TODO use light location to zoom in on traffic light in image
 
-        #Get classification
+        # Get classification
         return self.light_classifier.get_classification(cv_image)
 
 
