@@ -102,6 +102,36 @@ interfering with the ability to steer on the sharpest turns.
 
 ### Traffic light and motion control integration
 
+There are a number of ways of accomplishing the integration between the traffic
+light identification and the motion control system, some complicated and some
+not.  The way that we selected was not as complicated.  However, there are a 
+few things to note about the dynamics of the car that are important to the 
+argument for why we chose the method we did.  
+
+First, we know that the simulator is emulating the dynamics of the real car
+by having mass as well as an inertial aspect to acceleration and braking.  Since
+this is the case, we can control the car naturally with a binary control while
+letting the PID controller provide the impetus for the desired motion.  We looked
+into the idea of creating minimum jerk velocity profiles for future waypoints,
+but the end result of this is simply increasing the stopping distance on a car
+that already has the motion dynamics.
+
+Second, one may consider planning a future waypoint where the stopping action 
+should begin.  This is natural since we are projecting many waypoints into the
+future and would like to stay ahead of what we need to execute.  The problem
+with this is there is not an advantage over the simpler model of only looking 
+at waypoints within the stopping distance of the car.  This can be trivially
+determined from the target car speed.  Much the same is true of the distance
+to a traffic light where, if it turns red, no braking is required because the
+car would not stop properly.  
+
+With these ideas as our guides, we took the simplest approach first at integrating
+the traffic light identification with the motion controller.  The traffic light
+identification aspect of the project informs the waypoint updater of the next
+traffic light waypoint and its associated color.  Simple logic based on the 
+ideas mentioned above dictate how the car will react to it, either causing braking 
+to zero speed or causing acceleration to a preset cruising speed.
+
 
 
 ### How we managed work in our team
