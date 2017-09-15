@@ -144,7 +144,7 @@ class TLDetector(object):
         img_point, _ = cv2.projectPoints(object_point, rvec, tvec, camera_matrix, dist_coeffs)
 
         # Cast to int to get a pixel value
-        pixels = np.int32(img_point).reshape(-1,2)
+        pixels = np.int32(img_point).reshape(-1, 2)
 
         x = pixels[0][0]
         y = pixels[0][1]
@@ -181,7 +181,7 @@ class TLDetector(object):
         return light
 
 
-    def create_pose(self, x, y, z, yaw=0.):
+    def create_pose(self, x, y, z, yaw=0.0):
         pose = PoseStamped()
 
         pose.header          = Header()
@@ -192,7 +192,7 @@ class TLDetector(object):
         pose.pose.position.y = y
         pose.pose.position.z = z
 
-        q = tf.transformations.quaternion_from_euler(0., 0., math.pi*yaw/180.)
+        q = tf.transformations.quaternion_from_euler(0.0, 0.0, math.pi*yaw/180.0)
         pose.pose.orientation = Quaternion(*q)
 
         return pose
@@ -202,7 +202,7 @@ class TLDetector(object):
         light            = None
         light_positions  = self.config['light_positions']
         light_waypoints  = []
-        max_visible_dist = 50.0 # need to find optimal value
+        max_visible_dist = 80.0 # need to find optimal value
         min_dist         = 10000.0
 
         if(self.pose):
@@ -210,7 +210,7 @@ class TLDetector(object):
 
             # Find the closest visible traffic light (if one exists)
             for light_pos in light_positions:
-                light_tmp      = self.create_light(light_pos[0], light_pos[1], 0., 0., TrafficLight.UNKNOWN)
+                light_tmp      = self.create_light(light_pos[0], light_pos[1], 0.0, 0.0, TrafficLight.UNKNOWN)
                 light_position = self.get_closest_waypoint(light_tmp.pose.pose, self.waypoints.waypoints)
 
                 dist = self.distance(self.waypoints.waypoints[car_position].pose.pose.position.x,
@@ -219,6 +219,7 @@ class TLDetector(object):
                                      self.waypoints.waypoints[light_position].pose.pose.position.y)
 
                 if dist < min_dist and dist < max_visible_dist and car_position < light_position:
+                    min_dist = dist
                     light    = light_tmp
                     light_wp = light_position
 

@@ -28,7 +28,7 @@ class TLPublisher(object):
 
 
     def loop(self):
-        rate = rospy.Rate(50)
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.traffic_light_pubs.publish(self.lights)
             rate.sleep()
@@ -39,7 +39,7 @@ class TLPublisher(object):
 
         light.header          = Header()
         light.header.stamp    = rospy.Time.now()
-        light.header.frame_id = 'world'
+        light.header.frame_id = '/world'
 
         light.pose  = self.create_pose(x, y, z, yaw)
         light.state = state
@@ -47,18 +47,18 @@ class TLPublisher(object):
         return light
 
 
-    def create_pose(self, x, y, z, yaw=0.):
+    def create_pose(self, x, y, z, yaw=0.0):
         pose = PoseStamped()
 
         pose.header          = Header()
         pose.header.stamp    = rospy.Time.now()
-        pose.header.frame_id = 'world'
+        pose.header.frame_id = '/world'
 
         pose.pose.position.x = x
         pose.pose.position.y = y
         pose.pose.position.z = z
 
-        q = tf.transformations.quaternion_from_euler(0., 0., math.pi * yaw/180.)
+        q = tf.transformations.quaternion_from_euler(0.0, 0.0, math.pi * yaw/180.0)
         pose.pose.orientation = Quaternion(*q)
 
         return pose
