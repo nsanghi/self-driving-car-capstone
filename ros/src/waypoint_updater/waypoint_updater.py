@@ -77,16 +77,19 @@ class WaypointUpdater(object):
 
             # If we are too close to bother slowing
             if tw != -1 and tw - ni < min_brake_wps:
+                rospy.logwarn('case 1')
                 self.slowing = False
                 sp = [ss for i in range(LOOKAHEAD_WPS)]
 
             # If we are in range to come to a halt (horizon of range is how many points ahead we look at)
             elif tw != -1 and tw - ni < self.max_brake_wps:
+                rospy.logwarn('case 2')
                 self.slowing = True
                 sp = [0.0 for i in range(LOOKAHEAD_WPS)]
 
             # Otherwise we don't have indication of a red light
             else:
+                rospy.logwarn('case 3')
                 self.slowing = False
                 sp = [ss for i in range(LOOKAHEAD_WPS)]
 
