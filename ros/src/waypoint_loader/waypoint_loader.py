@@ -41,6 +41,8 @@ class WaypointLoader(object):
 
 
     def quaternion_from_yaw(self, yaw):
+        # Yaw in degrees for sim ought be in radians
+        yaw = yaw * 0.0174533
         return tf.transformations.quaternion_from_euler(0.0, 0.0, yaw)
 
 
