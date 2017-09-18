@@ -15,6 +15,9 @@ from   cv_bridge         import CvBridge
 from   light_classification.tl_classifier import TLClassifier
 
 
+STATE_COUNT_THRESHOLD = 3
+
+
 class TLDetector(object):
 
     def __init__(self):
@@ -39,7 +42,10 @@ class TLDetector(object):
         self.light_classifier = TLClassifier()
         self.listener         = tf.TransformListener()
 
-        self.last_wp = -1
+        self.state       =  TrafficLight.UNKNOWN
+        self.last_state  =  TrafficLight.UNKNOWN
+        self.last_wp     = -1
+        self.state_count =  0
 
         rospy.spin()
 
@@ -60,13 +66,27 @@ class TLDetector(object):
         self.has_image    = True
         self.camera_image = msg
         light_wp, state   = self.process_traffic_lights()
+        rospy.logwarn(state)
 
-        rospy.logwarn('S: ' + str(state) + '  WP: ' + str(light_wp))
+        if self.state != state:
+            self.state_count = 0
+            self.state       = state
 
-        if state == TrafficLight.RED or state == TrafficLight.YELLOW:
+        elif self.state_count >= STATE_COUNT_THRESHOLD:
+            self.last_state =  self.state
+            if state == TrafficLight.RED or state == TrafficLight.YELLOW:
+                light_wp = light_wp
+            else:
+                light_wp = -1
+            self.last_wp = light_wp
+            rospy.logwarn(light_wp)
             self.upcoming_red_light_pub.publish(Int32(light_wp))
+
         else:
-            self.upcoming_red_light_pub.publish(Int32(-1))
+            rospy.logwarn(self.last_wp)
+            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+
+        self.state_count += 1
 
 
     def distance(self, x1, y1, x2, y2):
