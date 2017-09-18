@@ -21,7 +21,7 @@ class Controller(object):
         self.wheel_radius    = rospy.get_param('~wheel_radius',    0.2413)
 
         # Max braking torque
-        self.max_torque = self.vehicle_mass * math.fabs(self.decel_limit)
+        self.max_torque = self.vehicle_mass * math.fabs(self.decel_limit) * self.wheel_radius
 
         # Timer initializer 
         self.last_time = None
@@ -46,14 +46,9 @@ class Controller(object):
 
     def control(self, **kwargs):
 
-        # Reset PID controllers if drive by wire is disabled
+        # Unpack and rename the control variables           
         dbw_enabled = kwargs['dbw_enabled']
 
-        if dbw_enabled is False:
-            self.pid_control.reset()
-            self.pid_steering.reset()
-
-        # Unpack and rename the control variables           
         tc_l = kwargs['twist_cmd'].twist.linear
         tc_a = kwargs['twist_cmd'].twist.angular
 
@@ -66,8 +61,8 @@ class Controller(object):
         current_linear_velocity  = cv_l.x
         current_angular_velocity = cv_a.z
 
-        # Clear PID integram accumulator if speed is slow
-        if current_linear_velocity < 1.0:
+        # Clear PID integral accumulator if speed is slow or drive by wire is not enabled
+        if current_linear_velocity < 1.0 or dbw_enabled is False:
             self.pid_control.reset()
             self.pid_steering.reset() 
 
@@ -96,8 +91,8 @@ class Controller(object):
             # If PID implies deceleration
             else:
                 #self.pid_control.reset()
-            	brake = (self.max_torque / self.pid_control.kp) * max(0.0, -control) + self.brake_deadband
-                brake = self.soft_scale(brake, 0.5, self.max_torque)
+            	brake = (1.0 / self.pid_control.kp) * max(0.0, -control) 
+                brake = self.soft_scale(brake, 0.5, self.max_torque) + self.brake_deadband
                 rospy.logwarn('Braking')
 
             # Steering desired and current yaw estimates
@@ -110,12 +105,10 @@ class Controller(object):
                                                              current_linear_velocity)
 
             # Steering error, smoothing filters, PID and bounding
-            steering_error = desired_steering - current_steering
-            steering_error = self.lpf_pre.filter(steering_error)
-
-            steering = self.pid_steering.update(steering_error, delta_t)
+            steering = desired_steering - current_steering
+            steering = self.lpf_pre.filter(steering)
+            steering = self.pid_steering.update(steering, delta_t)
             steering = self.lpf_post.filter(steering)
-
             steering = self.bound(steering, self.max_steer_angle)
   
             #rospy.logwarn('desired:  ' + str(desired_linear_velocity))
