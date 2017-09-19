@@ -61,6 +61,20 @@ class WaypointUpdater(object):
                     nearest_index    = i
                     nearest_distance = d
 
+            # Ensure heading
+            delta_py = wpts[nearest_index].pose.pose.position.y - p.y
+            delta_px = wpts[nearest_index].pose.pose.position.y - p.x
+            heading  = math.atan2(delta_py, delta_px)
+            x = self.current_pose.pose.orientation.x
+            y = self.current_pose.pose.orientation.y
+            z = self.current_pose.pose.orientation.z
+            w = self.current_pose.pose.orientation.w
+            euler_angles_xyz = tf.transformations.euler_from_quaternion([x, y, z, w])
+            theta = euler_angles_xyz[-1]
+            angle = math.fabs(theta-heading)
+            if angle > math.pi/4:
+                nearest_index += 1
+
             # Handling of traffic light information
             ss = 0.0
             if hasattr(self, 'set_speed'):
