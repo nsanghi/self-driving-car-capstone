@@ -13,6 +13,7 @@ from   keras.applications.vgg16 import preprocess_input
 class TLClassifier(object):
 
     def __init__(self):
+
         # https://github.com/tensorflow/tensorflow/issues/6698
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True

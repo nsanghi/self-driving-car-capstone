@@ -28,7 +28,7 @@ class Controller(object):
 
         # PID controllers
         self.pid_control  = PID(5.0, 0.3, 0.02)
-        self.pid_steering = PID(8.5, 1.2, 0.15)
+        self.pid_steering = PID(6.5, 1.2, 0.05)
 
         # Steering LPFs
         self.lpf_pre  = LowPassFilter(0.2, 0.1)
@@ -60,7 +60,11 @@ class Controller(object):
         current_angular_velocity = cv_a.z
 
         # Clear PID integral accumulator if speed is slow or drive by wire is not enabled
-        if current_linear_velocity < 1.0 or dbw_enabled is False:
+        if dbw_enabled is False:
+            self.pid_control.reset()
+            self.pid_steering.reset() 
+
+        if current_linear_velocity < 1.0:
             self.pid_control.reset()
             self.pid_steering.reset() 
 
@@ -85,6 +89,7 @@ class Controller(object):
             	throttle = (1.0 / self.pid_control.kp) * max(0.0, control)
                 throttle = self.soft_scale(throttle, 0.5, 1.0)
                 rospy.logwarn('Accelerating')
+                rospy.logwarn('')
 
             # If PID implies deceleration
             else:
@@ -92,6 +97,7 @@ class Controller(object):
             	brake = (1.0 / self.pid_control.kp) * max(0.0, -control) 
                 brake = self.soft_scale(brake, 0.5, self.max_torque) + self.brake_deadband
                 rospy.logwarn('Braking')
+                rospy.logwarn('')
 
             # Steering desired and current yaw estimates
             desired_steering = self.yaw_control.get_steering(desired_linear_velocity, 
@@ -112,10 +118,10 @@ class Controller(object):
             #rospy.logwarn('desired:  ' + str(desired_linear_velocity))
             #rospy.logwarn('current:  ' + str(current_linear_velocity)) 
             #rospy.logwarn('error:    ' + str(velocity_error))
-            rospy.logwarn('throttle: ' + str(throttle))
-            rospy.logwarn('brake:    ' + str(brake))
-            rospy.logwarn('steering: ' + str(steering))
-            rospy.logwarn('')
+            #rospy.logwarn('throttle: ' + str(throttle))
+            #rospy.logwarn('brake:    ' + str(brake))
+            #rospy.logwarn('steering: ' + str(steering))
+            #rospy.logwarn('')
  
             return throttle, brake, steering
 
