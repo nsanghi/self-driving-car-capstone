@@ -220,9 +220,9 @@ class TLDetector(object):
 
     def process_traffic_lights(self):
         light            = None
-        light_positions  = self.config['light_positions']
+        light_positions  = self.config['stop_line_positions']
         light_waypoints  = []
-        max_visible_dist = 80.0 # need to find optimal value
+        max_visible_dist = 80.0 
         min_dist         = 10000.0
 
         if(self.pose):
