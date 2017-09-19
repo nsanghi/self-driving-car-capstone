@@ -27,10 +27,8 @@ class Controller(object):
         self.last_time = None
 
         # PID controllers
-        #self.pid_control  = PID(5.0, 0.3, 0.02)
-        #self.pid_steering = PID(8.5, 1.2, 0.15)
         self.pid_control  = PID(5.0, 0.3, 0.02)
-        self.pid_steering = PID(8.5, 1.2, 0.0)
+        self.pid_steering = PID(8.5, 1.2, 0.15)
 
         # Steering LPFs
         self.lpf_pre  = LowPassFilter(0.2, 0.1)
