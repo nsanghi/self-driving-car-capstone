@@ -86,7 +86,7 @@ class Controller(object):
 
             # If PID implies acceleration
             if control > 0:
-            	throttle = (1.0 / self.pid_control.kp) * max(0.0, control)
+            	throttle = max(0.0, control)
                 throttle = self.soft_scale(throttle, 0.5, 1.0)
                 rospy.logwarn('Accelerating')
                 rospy.logwarn('')
@@ -94,7 +94,7 @@ class Controller(object):
             # If PID implies deceleration
             else:
                 #self.pid_control.reset()
-            	brake = (1.0 / self.pid_control.kp) * max(0.0, -control) 
+            	brake = max(0.0, -control) 
                 brake = self.soft_scale(brake, 0.5, self.max_torque) + self.brake_deadband
                 rospy.logwarn('Braking')
                 rospy.logwarn('')
