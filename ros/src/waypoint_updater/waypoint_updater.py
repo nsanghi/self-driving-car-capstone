@@ -8,9 +8,9 @@ from   styx_msgs.msg     import Lane, Waypoint
 from   std_msgs.msg      import Int32, Float32
 
 
-LOOKAHEAD_WPS  = 800
+LOOKAHEAD_WPS  = 500
 MIN_BRAKE_COEF = 1.0
-MAX_BRAKE_COEF = 7.0
+MAX_BRAKE_COEF = 6.0
 
 
 class WaypointUpdater(object):

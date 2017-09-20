@@ -11,14 +11,14 @@ class Controller(object):
     def __init__(self):
 
         # Constants we need for control
-        self.brake_deadband  = rospy.get_param('~brake_deadband',  0.2)
-        self.decel_limit     = rospy.get_param('~decel_limit',    -5.0)
-        self.max_lat_accel   = rospy.get_param('~max_lat_accel',   3.0)
-        self.max_steer_angle = rospy.get_param('~max_steer_angle', 8.0) 
-        self.steer_ratio     = rospy.get_param('~steer_ratio',     2.67)
-        self.vehicle_mass    = rospy.get_param('~vehicle_mass',    1736.35)
-        self.wheel_base      = rospy.get_param('~wheel_base',      3.0)
-        self.wheel_radius    = rospy.get_param('~wheel_radius',    0.2413)
+        self.brake_deadband  = rospy.get_param('~brake_deadband')
+        self.decel_limit     = rospy.get_param('~decel_limit')
+        self.max_lat_accel   = rospy.get_param('~max_lat_accel')
+        self.max_steer_angle = rospy.get_param('~max_steer_angle') 
+        self.steer_ratio     = rospy.get_param('~steer_ratio')
+        self.vehicle_mass    = rospy.get_param('~vehicle_mass')
+        self.wheel_base      = rospy.get_param('~wheel_base')
+        self.wheel_radius    = rospy.get_param('~wheel_radius')
 
         # Max braking torque
         self.max_torque = self.vehicle_mass * math.fabs(self.decel_limit) * self.wheel_radius
@@ -28,11 +28,11 @@ class Controller(object):
 
         # PID controllers
         self.pid_control  = PID(0.4, 0.2, 0.0)
-        self.pid_steering = PID(0.6, 0.7, 0.4)
+        self.pid_steering = PID(0.4, 0.3, 0.05)
 
         # Steering LPFs
-        self.lpf_pre  = LowPassFilter(0.2, 0.1)
-        self.lpf_post = LowPassFilter(0.7, 0.1)
+        self.lpf_pre  = LowPassFilter(0.05, 0.02)
+        self.lpf_post = LowPassFilter(0.45, 0.02)
 
         # Yaw controller
         self.yaw_control = YawController(wheel_base      = self.wheel_base, 

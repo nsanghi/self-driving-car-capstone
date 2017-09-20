@@ -24,7 +24,7 @@ class DBWNode(object):
         self.dbw_enabled = False
         self.controller  = Controller()
 
-        rate = rospy.Rate(10) 
+        rate = rospy.Rate(50) 
         while not rospy.is_shutdown():
             self.loop()
             rate.sleep()
