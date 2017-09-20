@@ -28,11 +28,11 @@ class Controller(object):
 
         # PID controllers
         self.pid_control  = PID(5.0, 0.3, 0.02)
-        self.pid_steering = PID(6.5, 1.2, 0.05)
+        self.pid_steering = PID(0.6, 0.7, 0.4)
 
         # Steering LPFs
         self.lpf_pre  = LowPassFilter(0.2, 0.1)
-        self.lpf_post = LowPassFilter(0.4, 0.1)
+        self.lpf_post = LowPassFilter(0.7, 0.1)
 
         # Yaw controller
         self.yaw_control = YawController(wheel_base      = self.wheel_base, 
