@@ -76,7 +76,7 @@ class WaypointUpdater(object):
                 nearest_index += 1
 
             # Handling of traffic light information
-            ss = 0.0
+            ss = 4.47
             if hasattr(self, 'set_speed'):
                 ss = self.set_speed
 
