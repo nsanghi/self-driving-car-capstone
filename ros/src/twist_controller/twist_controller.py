@@ -89,15 +89,12 @@ class Controller(object):
             	throttle = max(0.0, control)
                 throttle = self.soft_scale(throttle, 0.5, 1.0)
                 rospy.logwarn('Accelerating')
-                rospy.logwarn('')
 
             # If PID implies deceleration
             else:
-                #self.pid_control.reset()
             	brake = max(0.0, -control) 
                 brake = self.soft_scale(brake, 0.5, self.max_torque) + self.brake_deadband
                 rospy.logwarn('Braking')
-                rospy.logwarn('')
 
             # Steering desired and current yaw estimates
             desired_steering = self.yaw_control.get_steering(desired_linear_velocity, 
@@ -115,14 +112,6 @@ class Controller(object):
             steering = self.lpf_post.filter(steering)
             steering = self.bound(steering, self.max_steer_angle)
   
-            #rospy.logwarn('desired:  ' + str(desired_linear_velocity))
-            #rospy.logwarn('current:  ' + str(current_linear_velocity)) 
-            #rospy.logwarn('error:    ' + str(velocity_error))
-            #rospy.logwarn('throttle: ' + str(throttle))
-            #rospy.logwarn('brake:    ' + str(brake))
-            #rospy.logwarn('steering: ' + str(steering))
-            #rospy.logwarn('')
- 
             return throttle, brake, steering
 
         # If this is the first run and we need a baseline time

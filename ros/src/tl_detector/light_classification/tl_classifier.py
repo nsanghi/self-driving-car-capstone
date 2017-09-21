@@ -33,13 +33,10 @@ class TLClassifier(object):
         image = preprocess_input(image)
 
         start_time = time.time()
-        pred       = self.get_output([image, 0])[0]
-
-        #rospy.logwarn('---{} seconds---'.format(time.time() - start_time))
+        pred = self.get_output([image, 0])[0]
 
         # Get the index with max value that corresponds to the predicted state
         pred = np.argmax(pred)
-        #rospy.logwarn('argmax: {}'.format(pred))
 
         # Find class based on prediction index (need to confirm labels are correct order)
         if pred == 0:

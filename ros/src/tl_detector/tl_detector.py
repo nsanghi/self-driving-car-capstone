@@ -15,7 +15,7 @@ from   cv_bridge         import CvBridge
 from   light_classification.tl_classifier import TLClassifier
 
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 2
 
 
 class TLDetector(object):
@@ -66,7 +66,6 @@ class TLDetector(object):
         self.has_image    = True
         self.camera_image = msg
         light_wp, state   = self.process_traffic_lights()
-        #rospy.logwarn(state)
 
         if self.state != state:
             self.state_count = 0
@@ -79,11 +78,9 @@ class TLDetector(object):
             else:
                 light_wp = -1
             self.last_wp = light_wp
-            #rospy.logwarn(light_wp)
             self.upcoming_red_light_pub.publish(Int32(light_wp))
 
         else:
-            #rospy.logwarn(self.last_wp)
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
 
         self.state_count += 1

@@ -10,7 +10,7 @@ from   std_msgs.msg      import Int32, Float32
 
 LOOKAHEAD_WPS  = 500
 MIN_BRAKE_COEF = 1.0
-MAX_BRAKE_COEF = 6.0
+MAX_BRAKE_COEF = 4.5
 
 
 class WaypointUpdater(object):
@@ -89,8 +89,6 @@ class WaypointUpdater(object):
             if self.slowing == False:
                 self.max_brake_wps = int(MAX_BRAKE_COEF * self.current_velocity)
 
-            #rospy.logwarn('TW: ' + str(tw) + ' NI: ' + str(ni) + ' MBW: ' + str(min_brake_wps))
-
             # If we are too close to bother slowing
             if tw != -1 and tw - ni < min_brake_wps:
                 rospy.logwarn('Red light too close to brake')
@@ -135,7 +133,6 @@ class WaypointUpdater(object):
 
     def traffic_waypoint_cb(self, msg):
         self.traffic_waypoint = msg.data
-        #rospy.logwarn('WP: ' + str(self.traffic_waypoint))
 
 
     def obstacle_waypoint_cb(self, msg):
