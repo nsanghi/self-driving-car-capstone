@@ -8,6 +8,9 @@ from   geometry_msgs.msg import TwistStamped
 from   twist_controller  import Controller
 
 
+RATE = 50
+
+
 class DBWNode(object):
 
     def __init__(self):
@@ -22,9 +25,9 @@ class DBWNode(object):
         self.steer_pub    = rospy.Publisher('/vehicle/steering_cmd', SteeringCmd, queue_size=1)
 
         self.dbw_enabled = False
-        self.controller  = Controller()
+        self.controller  = Controller(RATE)
 
-        rate = rospy.Rate(50) 
+        rate = rospy.Rate(RATE) 
         while not rospy.is_shutdown():
             self.loop()
             rate.sleep()

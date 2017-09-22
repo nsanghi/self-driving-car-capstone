@@ -6,12 +6,12 @@ from   lowpass        import LowPassFilter
 from   std_msgs.msg   import Float32
 
 
-RATE = 50
-
-
 class Controller(object):
 
-    def __init__(self):
+    def __init__(self, rate):
+
+        # Rate interval
+        self.interval = 1.0 / rate
 
         # Constants we need for control
         self.brake_deadband  = rospy.get_param('~brake_deadband')
@@ -26,15 +26,15 @@ class Controller(object):
         self.max_torque = self.vehicle_mass * math.fabs(self.decel_limit) * self.wheel_radius
 
         # Timer initializer 
-        self.last_time = None
+        self.last_time = rospy.get_time()
 
         # PID controllers
         self.pid_control  = PID(0.3, 0.15, 0.0)
         self.pid_steering = PID(0.42, 0.12, 0.05)
 
         # Steering LPFs
-        self.lpf_pre  = LowPassFilter(0.05, 1.0 / RATE)
-        self.lpf_post = LowPassFilter(0.15, 1.0 / RATE)
+        self.lpf_pre  = LowPassFilter(0.05, self.interval)
+        self.lpf_post = LowPassFilter(0.35, self.interval)
 
         # Yaw controller
         self.yaw_control = YawController(self.wheel_base, self.steer_ratio)
@@ -57,6 +57,11 @@ class Controller(object):
         current_linear_velocity  = cv_l.x
         current_angular_velocity = cv_a.z
 
+        # Calculate time interval for PIDs
+        time = rospy.get_time()
+        interval = time - self.last_time
+        self.last_time = time
+
         # Clear PID integral accumulator if speed is slow or drive by wire is not enabled
         if dbw_enabled is False:
             self.pid_control.reset()
@@ -68,7 +73,7 @@ class Controller(object):
 
         # Throttle and brake PID
         velocity_error = desired_linear_velocity - current_linear_velocity
-        control        = self.pid_control.update(velocity_error, 1.0 / RATE)
+        control        = self.pid_control.update(velocity_error, interval)
 
         # Default throttle and brake to zero
         throttle = 0.0
@@ -78,13 +83,13 @@ class Controller(object):
         if control > 0:
             throttle = max(0.0, control)
             throttle = self.soft_scale(throttle, 0.4, 1.0)
-            rospy.logwarn('Accelerating')
+            #rospy.logwarn('Accelerating')
 
         # If PID implies deceleration
         else:
             brake = max(0.0, -control) 
-            brake = self.soft_scale(brake, 0.6, self.max_torque) + self.brake_deadband
-            rospy.logwarn('Braking')
+            brake = self.soft_scale(brake, 1.5, self.max_torque) 
+            #rospy.logwarn('Braking')
 
         # Steering desired and current yaw estimates
         desired_steering = self.yaw_control.get_steering(desired_linear_velocity, desired_angular_velocity)
@@ -93,10 +98,10 @@ class Controller(object):
         # Steering error, smoothing filters, PID and bounding
         steering = desired_steering - current_steering
         steering = self.lpf_pre.filter(steering)
-        steering = self.pid_steering.update(steering, 1.0 / RATE)
+        steering = self.pid_steering.update(steering, interval)
         steering = self.lpf_post.filter(steering)
         steering = self.bound(steering, self.max_steer_angle)
-  
+
         return throttle, brake, steering
 
 

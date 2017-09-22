@@ -8,10 +8,10 @@ from   styx_msgs.msg     import Lane, Waypoint
 from   std_msgs.msg      import Int32, Float32
 
 
-DEFAULT_SPEED  = 4.47
-LOOKAHEAD_WPS  = 500
-MIN_BRAKE_COEF = 1.0
-MAX_BRAKE_COEF = 4.5
+DEFAULT_SPEED    = 4.47
+LOOKAHEAD_WPS    = 500
+MIN_BRAKING_DIST = 9.0
+MAX_BRAKING_DIST = 11.0
 
 
 class WaypointUpdater(object):
@@ -31,8 +31,7 @@ class WaypointUpdater(object):
         
         self.traffic_waypoint = -1 
         self.current_velocity =  0.0
-        self.max_brake_wps    =  0.0
-        self.slowing          =  False
+        self.braking          =  False
 
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
@@ -85,29 +84,24 @@ class WaypointUpdater(object):
             tw = self.traffic_waypoint
             ni = nearest_index
 
-            min_brake_wps = int(MIN_BRAKE_COEF * self.current_velocity)
-
-            if self.slowing == False:
-                self.max_brake_wps = int(MAX_BRAKE_COEF * self.current_velocity)
-
-            # If we are too close to bother slowing
-            if tw != -1 and tw - ni < min_brake_wps:
-                rospy.logwarn('Red light too close to brake')
-                self.slowing = False
-                sp = [ss for i in range(LOOKAHEAD_WPS)]
-
-            # If we are in range to come to a halt (horizon of range is how many points ahead we look at)
-            elif tw != -1 and tw - ni < self.max_brake_wps:
-                rospy.logwarn('Red light in braking zone')
-                self.slowing = True
+            # Check if we know the next light waypoint
+            if tw != -1 and self.braking == False:
+                dist = self.distance(wpts, ni, tw)
+                if MIN_BRAKING_DIST < dist < MAX_BRAKING_DIST:
+                    rospy.logwarn('Initiating braking')
+                    self.braking = True
+                    sp = [0.0 for i in range(LOOKAHEAD_WPS)]
+                else:
+                    rospy.logwarn('Light in sight but not braking')
+                    sp = [ss for i in range(LOOKAHEAD_WPS)]
+            elif tw != -1 and self.braking == True:
+                rospy.logwarn('Continuing to brake')
                 sp = [0.0 for i in range(LOOKAHEAD_WPS)]
-
-            # Otherwise we don't have indication of a red light
             else:
                 rospy.logwarn('No red light in sight')
-                self.slowing = False
+                self.braking = False
                 sp = [ss for i in range(LOOKAHEAD_WPS)]
-
+                
             # Create forward list of waypoints 
             for i in range(nearest_index, nearest_index + LOOKAHEAD_WPS):
                 index = i % len(wpts)
