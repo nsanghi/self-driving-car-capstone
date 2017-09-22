@@ -83,13 +83,11 @@ class Controller(object):
         if control > 0:
             throttle = max(0.0, control)
             throttle = self.soft_scale(throttle, 0.4, 1.0)
-            #rospy.logwarn('Accelerating')
 
         # If PID implies deceleration
         else:
             brake = max(0.0, -control) 
             brake = self.soft_scale(brake, 1.5, self.max_torque) 
-            #rospy.logwarn('Braking')
 
         # Steering desired and current yaw estimates
         desired_steering = self.yaw_control.get_steering(desired_linear_velocity, desired_angular_velocity)
