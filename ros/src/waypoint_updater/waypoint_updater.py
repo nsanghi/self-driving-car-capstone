@@ -8,6 +8,7 @@ from   styx_msgs.msg     import Lane, Waypoint
 from   std_msgs.msg      import Int32, Float32
 
 
+DEFAULT_SPEED  = 4.47
 LOOKAHEAD_WPS  = 500
 MIN_BRAKE_COEF = 1.0
 MAX_BRAKE_COEF = 4.5
@@ -76,7 +77,7 @@ class WaypointUpdater(object):
                 nearest_index += 1
 
             # Handling of traffic light information
-            ss = 4.47
+            ss = DEFAULT_SPEED
             if hasattr(self, 'set_speed'):
                 ss = self.set_speed
 
@@ -141,6 +142,15 @@ class WaypointUpdater(object):
 
     def set_speed_cb(self, msg):
         self.set_speed = msg.data
+
+
+    def distance(self, waypoints, wp1, wp2):
+        dist = 0.0
+        dl   = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(wp1, wp2+1):
+            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
+            wp1 = i
+        return dist
 
 
 if __name__ == '__main__':
