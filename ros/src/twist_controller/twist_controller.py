@@ -6,6 +6,9 @@ from   lowpass        import LowPassFilter
 from   std_msgs.msg   import Float32
 
 
+RATE = 50
+
+
 class Controller(object):
 
     def __init__(self):
@@ -13,7 +16,6 @@ class Controller(object):
         # Constants we need for control
         self.brake_deadband  = rospy.get_param('~brake_deadband')
         self.decel_limit     = rospy.get_param('~decel_limit')
-        self.max_lat_accel   = rospy.get_param('~max_lat_accel')
         self.max_steer_angle = rospy.get_param('~max_steer_angle') 
         self.steer_ratio     = rospy.get_param('~steer_ratio')
         self.vehicle_mass    = rospy.get_param('~vehicle_mass')
@@ -27,19 +29,15 @@ class Controller(object):
         self.last_time = None
 
         # PID controllers
-        self.pid_control  = PID(0.4, 0.2, 0.0)
+        self.pid_control  = PID(0.3, 0.15, 0.0)
         self.pid_steering = PID(0.42, 0.12, 0.05)
 
         # Steering LPFs
-        self.lpf_pre  = LowPassFilter(0.05, 0.02)
-        self.lpf_post = LowPassFilter(0.45, 0.02)
+        self.lpf_pre  = LowPassFilter(0.05, 1.0 / RATE)
+        self.lpf_post = LowPassFilter(0.35, 1.0 / RATE)
 
         # Yaw controller
-        self.yaw_control = YawController(wheel_base      = self.wheel_base, 
-                                         steer_ratio     = self.steer_ratio,
-                                         min_speed       = 0.0, 
-                                         max_lat_accel   = self.max_lat_accel,
-                                         max_steer_angle = self.max_steer_angle)    
+        self.yaw_control = YawController(self.wheel_base, self.steer_ratio)
 
 
     def control(self, **kwargs):
@@ -64,60 +62,42 @@ class Controller(object):
             self.pid_control.reset()
             self.pid_steering.reset() 
 
-        if current_linear_velocity < 1.0:
+        if current_linear_velocity < 0.1:
             self.pid_control.reset()
             self.pid_steering.reset() 
 
-        # If we have been running and can compute a time difference
-        if self.last_time is not None:
- 
-            # Update times
-            time           = rospy.get_time()
-            delta_t        = time - self.last_time
-            self.last_time = time
+        # Throttle and brake PID
+        velocity_error = desired_linear_velocity - current_linear_velocity
+        control        = self.pid_control.update(velocity_error, 1.0 / RATE)
 
-            # Throttle and brake PID
-            velocity_error = desired_linear_velocity - current_linear_velocity
-            control        = self.pid_control.update(velocity_error, delta_t)
+        # Default throttle and brake to zero
+        throttle = 0.0
+        brake    = 0.0
 
-            # Default throttle and brake to zero
-            throttle = 0.0
-            brake    = 0.0
+        # If PID implies acceleration
+        if control > 0:
+            throttle = max(0.0, control)
+            throttle = self.soft_scale(throttle, 0.4, 1.0)
+            rospy.logwarn('Accelerating')
 
-            # If PID implies acceleration
-            if control > 0:
-            	throttle = max(0.0, control)
-                throttle = self.soft_scale(throttle, 0.5, 1.0)
-                rospy.logwarn('Accelerating')
-
-            # If PID implies deceleration
-            else:
-            	brake = max(0.0, -control) 
-                brake = self.soft_scale(brake, 0.5, self.max_torque) + self.brake_deadband
-                rospy.logwarn('Braking')
-
-            # Steering desired and current yaw estimates
-            desired_steering = self.yaw_control.get_steering(desired_linear_velocity, 
-                                                             desired_angular_velocity, 
-                                                             desired_linear_velocity)
-
-            current_steering = self.yaw_control.get_steering(current_linear_velocity,
-                                                             current_angular_velocity,
-                                                             current_linear_velocity)
-
-            # Steering error, smoothing filters, PID and bounding
-            steering = desired_steering - current_steering
-            steering = self.lpf_pre.filter(steering)
-            steering = self.pid_steering.update(steering, delta_t)
-            steering = self.lpf_post.filter(steering)
-            steering = self.bound(steering, self.max_steer_angle)
-  
-            return throttle, brake, steering
-
-        # If this is the first run and we need a baseline time
+        # If PID implies deceleration
         else:
-            self.last_time = rospy.get_time()
-            return 0.0, 0.0, 0.0
+            brake = max(0.0, -control) 
+            brake = self.soft_scale(brake, 0.6, self.max_torque) + self.brake_deadband
+            rospy.logwarn('Braking')
+
+        # Steering desired and current yaw estimates
+        desired_steering = self.yaw_control.get_steering(desired_linear_velocity, desired_angular_velocity)
+        current_steering = self.yaw_control.get_steering(current_linear_velocity, current_angular_velocity)
+
+        # Steering error, smoothing filters, PID and bounding
+        steering = desired_steering - current_steering
+        steering = self.lpf_pre.filter(steering)
+        steering = self.pid_steering.update(steering, 1.0 / RATE)
+        steering = self.lpf_post.filter(steering)
+        steering = self.bound(steering, self.max_steer_angle)
+  
+        return throttle, brake, steering
 
 
     # Symmetric bounding constraint applied to a value
