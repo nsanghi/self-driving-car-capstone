@@ -76,7 +76,7 @@ image samples to be sure it performed as expected.
 The traffic light detector employs this model, classifying images that are exposed 
 by the `/vehicle/traffic_lights`.  First the image is classified and the predicted
 state is determined by taking the `argmax` of the four resulting classification
-vectos.  Inference speed is about 15ms per frame using a GTX 1060.  If there is 
+vectors.  Inference speed is about 15ms per frame using a GTX 1060.  If there is 
 evidence of a traffic light in the frame, the nearest traffic light waypoint 
 in front of the car is used as the waypoint.  An alternative to this 
 mechanism of identifying the waypoint is to use information about
