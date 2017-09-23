@@ -75,15 +75,18 @@ image samples to be sure it performed as expected.
 
 The traffic light detector employs this model, classifying images that are exposed 
 by the `/vehicle/traffic_lights`.  First the image is classified and the predicted
-state is determined.  If there is evidence of a traffic light in the frame, the
-nearest traffic light waypoint in front of the car is used as the waypoint.  An
-alternative to this mechanism of identifying the waypoint is to use information about
+state is determined by taking the `argmax` of the four resulting classification
+vectos.  Inference speed is about 15ms per frame using a GTX 1060.  If there is 
+evidence of a traffic light in the frame, the nearest traffic light waypoint 
+in front of the car is used as the waypoint.  An alternative to this 
+mechanism of identifying the waypoint is to use information about
 the car's pose and the camera to infer a point where the traffic light is using
 projection to the plane the car is on.  This can then be used to identify the nearest
 waypoint without `a priori` knowledge of the traffic light waypoints.  Both the
 traffic light state and the waypoint of the traffic light are then passed to the
 waypoint updated to apply logic to control the acceleration and braking of the 
-car.
+car, though only if the traffic light detected has been experienced 
+`STATE_COUNT_THRESHOLD` times in a row, which prevents false positives.
 
 
 
@@ -135,8 +138,9 @@ controller that has a split output for the throttle and brake.  This conditional
 allows scaling for the throttle in the [0,1] range while allowing scaling for 
 the brake deadband through maximum torque as defined by the car properties for
 the braking.  The PID controller was tuned manually (see [here](docs/BasilioMatos.pdf) 
-and [here](docs/ZieglerNichols.pdf), and more specifically [here](VIDEO) for more 
-on tuning). The scaling function for both acceleration and braking is a variant of 
+and [here](docs/ZieglerNichols.pdf), and more specifically 
+[here](https://www.youtube.com/watch?v=drYO60z6_h4) for more on tuning). The 
+scaling function for both acceleration and braking is a variant of 
 soft-step.  The reasons for this are smooth transition (though the derivative is not
 continuous at zero, this hardly matters since that is the point where the two
 types of car control change), automatic bounding due to the asymptotic nature
@@ -254,6 +258,105 @@ something beyond the project that needed their attention.
 
 ### Lessons learned and areas for improvement
 
+There are a number of lessons that were learned, both related to the 
+technical aspects of the project as well as the way that we worked 
+together to accomplish the goal.  The presentation here is chronological
+spanning both topics.
 
+It turned out to be very useful to be involved in a team early.  This 
+allowed for accelerated milestones and helped keep the project on
+track.  Early on we divided the work between the deep learning aspect
+and the motion control aspect, with the expectation that as these were
+completed we would all work across the entire project.  As we began,
+those working on deep learning got familiar with the `ROSBAG` ideas, 
+what the right model would be to obtain good results, how we would
+generate this data.  At the same time, those working on the motion
+control were exposed to other `ROS` features and learning about
+controlling the project from a separate console. 
+
+There was a lot of discussion early on about the model and how to 
+generate the training data.  As well, there was a lot of discussion
+about how to use the various motion control aspects that were 
+provided (e.g. the yaw controller, PID controller, etc.), particularly
+compared with reworking or replacing some of these.  Since we were one
+of the first groups to have solid progress, at least that we could 
+tell, we had to make a number of decisions by simply trying many 
+potential solutions.  As it turned out, the two most troubling issues 
+ended up being how to control the steering and how to generate and 
+control the signal for braking and accelerating the car.  
+
+Two ideas were put forward regarding the steering.  One was using the
+stock yaw controller, which works very well except in the case 
+of slowing down quickly, as the difference between the desired and 
+current velocity affects the steering.  This solution is simple, 
+essentially provided for us, but not ideal in this one case.  The 
+other solution was to rework the yaw controller so that it was more
+compatible with a PID controller, namely by having two yaw controllers,
+on for the desired yaw and one for the current yaw, and then applying
+a PID controller to this error term.  This was more complex, deviated
+from the supplied code, and required using low pass filters for 
+smoothing the resulting steering.  This also had negative properties,
+as the low pass filter made performance in the tighter turns not as 
+ideal.  We put forth models having both of these so that as a team
+we could look at the relative performance and consider what would
+be the best solution for the specific problem we are working on.
+
+Regarding the control of the motion from the traffic light 
+detection, there were three main ideas.  One was creating a minimum
+jerk velocity profile for future waypoints and letting the PID
+controller attempt to track this.  A second was to simply apply 
+constant braking with magnitude determined by the stopping distance
+and the characteristics of the car (mass, velocity, wheel radius),
+and brake at the appropriate time before the light.  A third mechanism
+was presented where the PID controller was still in the loop, and
+utilized a soft-step mapping with asymptotic behavior so that effectively
+it would brake hard when stopping and have a deterministic effect 
+based on desired stopping distance, but for low speed behave 
+gently.  Again we produced various branches employing the different
+solutions so that we could choose a best solution. 
+
+Much of this competitive solution optimization was performed after
+we had an MVP on the date that we expected to have the MVP.  As a 
+team we were simply not satisfied with the results and opted to 
+work on opportunities for improvement that were consistent with the
+vision we had for making the improvements.  Since everyone had their 
+own ideas on this, we developed the ideas we liked best and then
+started evaluating what worked best.
+
+As you can see, the team dynamic and ability to work on different
+parts of the problem, but come together at the end to make final
+optimizations, was well played.  We did have issues with team
+members having other engagements, with loosing sight of the larger
+goal to focus on small details and revisiting solutions that we thought
+we already solved, but the end result of coming up with the best
+solution given all of the factors that contributed to the project
+worked out successfully.
+
+Of course there are areas for improvement, and lots of them.  Below are
+listed just a few:
+
+  * More training data
+  * More types of augmentation
+  * Interpolation of waypoints
+  * Better tuning of PID controllers
+  * Better coefficients for low pass filters
+  * Evaluation of other methods for steering control
+  * Evaluation of other methods of motion planning
+  * Better estimation of traffic light for images
+  * Wider range of speed with acceptable performance
+
+While there are a lot of opportunities for improvement, we are also
+happy about all of the parts of the project that we solved within
+the time allowed for completion and within the scope of the objectives
+that needed to be met for the solution.  While some of the aspects of 
+the project were actually simpler than prior assignments, the larger,
+integrated, scope of the project, as well as working in a team, 
+gave us a better sense of the effort required to solve real world
+problems in the autonomous vehicle space.  
+
+Thank you so much, Udacity, for presenting us with the various 
+problems over the last year, and for helping us become much more 
+familiar with the practical challenges that go into the development
+of self-driving vehicles.  It has been awesome.
 
 
