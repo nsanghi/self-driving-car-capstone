@@ -10,8 +10,8 @@ from   std_msgs.msg      import Int32, Float32
 
 DEFAULT_SPEED_MPH = 10.0
 LOOKAHEAD_WPS     = 500
-MIN_BRAKING_DIST  = 9.0
-MAX_BRAKING_DIST  = 11.0
+MIN_BRAKING_COEF  = 2.0 
+MAX_BRAKING_COEF  = 2.65 
 
 
 class WaypointUpdater(object):
@@ -84,15 +84,19 @@ class WaypointUpdater(object):
             tw = self.traffic_waypoint
             ni = nearest_index
 
+            # Compute min and max braking distances
+            min_braking_distance = self.current_velocity * MIN_BRAKING_COEF
+            max_braking_distance = self.current_velocity * MAX_BRAKING_COEF
+
             # Check if we know the next light waypoint
             if tw != -1 and self.braking == False:
                 dist = self.distance(wpts, ni, tw)
-                if MIN_BRAKING_DIST < dist < MAX_BRAKING_DIST:
+                if min_braking_distance < dist < max_braking_distance:
                     rospy.logwarn('Initiating braking')
                     self.braking = True
                     sp = [0.0 for i in range(LOOKAHEAD_WPS)]
                 else:
-                    rospy.logwarn('Light in sight but not braking')
+                    rospy.logwarn('Red light in sight but not braking')
                     sp = [ss for i in range(LOOKAHEAD_WPS)]
             elif tw != -1 and self.braking == True:
                 rospy.logwarn('Continuing to brake')
