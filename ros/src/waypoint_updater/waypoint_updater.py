@@ -10,8 +10,8 @@ from   std_msgs.msg      import Int32, Float32
 
 DEFAULT_SPEED_MPH = 10.0
 LOOKAHEAD_WPS     = 500
-MIN_BRAKING_COEF  = 2.0 
-MAX_BRAKING_COEF  = 2.65 
+MIN_BRAKING_COEF  = 1.7 
+MAX_BRAKING_COEF  = 2.4 
 
 
 class WaypointUpdater(object):
@@ -96,13 +96,13 @@ class WaypointUpdater(object):
                     self.braking = True
                     sp = [0.0 for i in range(LOOKAHEAD_WPS)]
                 else:
-                    rospy.logwarn('Red light in sight but not braking')
+                    rospy.logwarn('Red light in sight but not braking (' + str(dist) + 'm)')
                     sp = [ss for i in range(LOOKAHEAD_WPS)]
             elif tw != -1 and self.braking == True:
                 rospy.logwarn('Continuing to brake')
                 sp = [0.0 for i in range(LOOKAHEAD_WPS)]
             else:
-                rospy.logwarn('No red light in sight')
+                rospy.logwarn('No red light in sight (accelerating/cruising)')
                 self.braking = False
                 sp = [ss for i in range(LOOKAHEAD_WPS)]
                 
