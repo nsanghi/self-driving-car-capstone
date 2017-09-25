@@ -11,8 +11,8 @@ from   std_msgs.msg      import Int32, Float32
 
 DEFAULT_SPEED_MPH = 10.0
 LOOKAHEAD_WPS     = 500
-MIN_BRAKING_COEF  = 1.7 
-MAX_BRAKING_COEF  = 2.4 
+MIN_BRAKING_COEF  = 1.6 
+MAX_BRAKING_COEF  = 2.2 
 
 
 class WaypointUpdater(object):
