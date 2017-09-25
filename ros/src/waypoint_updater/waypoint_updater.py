@@ -2,9 +2,10 @@
 
 import rospy
 import math
+import yaml
 import tf
 from   geometry_msgs.msg import PoseStamped, TwistStamped
-from   styx_msgs.msg     import Lane, Waypoint
+from   styx_msgs.msg     import Lane, Waypoint, TrafficLightArray
 from   std_msgs.msg      import Int32, Float32
 
 
@@ -20,19 +21,26 @@ class WaypointUpdater(object):
 
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose',      PoseStamped,  self.current_pose_cb)
-        rospy.Subscriber('/base_waypoints',    Lane,         self.base_waypoints_cb)
-        rospy.Subscriber('/traffic_waypoint',  Int32,        self.traffic_waypoint_cb)
-        rospy.Subscriber('/obstacle_waypoint', Int32,        self.obstacle_waypoint_cb)
-        rospy.Subscriber('/current_velocity',  TwistStamped, self.current_velocity_cb)
-        rospy.Subscriber('/set_speed',         Float32,      self.set_speed_cb)
+        rospy.Subscriber('/base_waypoints',         Lane,              self.base_waypoints_cb)
+        rospy.Subscriber('/current_pose',           PoseStamped,       self.current_pose_cb)
+        rospy.Subscriber('/current_velocity',       TwistStamped,      self.current_velocity_cb)
+        rospy.Subscriber('/obstacle_waypoint',      Int32,             self.obstacle_waypoint_cb)
+        rospy.Subscriber('/set_speed',              Float32,           self.set_speed_cb)
+        rospy.Subscriber('/traffic_waypoint',       Int32,             self.traffic_waypoint_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
         
+        # Load traffic light stopping positions
+        config_string        = rospy.get_param("/traffic_light_config")
+        config               = yaml.load(config_string)
+        self.light_positions = config['stop_line_positions']
+
+        # Initialize constants
         self.traffic_waypoint = -1 
         self.current_velocity =  0.0
         self.braking          =  False
 
+        # Set rate and loop
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.loop()
@@ -88,6 +96,9 @@ class WaypointUpdater(object):
             min_braking_distance = self.current_velocity * MIN_BRAKING_COEF
             max_braking_distance = self.current_velocity * MAX_BRAKING_COEF
 
+            # Calculate next known traffic light
+            next_light_wp = self.calculate_next_known_light_wp()
+
             # Check if we know the next light waypoint
             if tw != -1 and self.braking == False:
                 dist = self.distance(wpts, ni, tw)
@@ -116,6 +127,10 @@ class WaypointUpdater(object):
                 lane.waypoints[i].twist.twist.linear.x = sp[i]
 
             self.final_waypoints_pub.publish(lane)
+
+
+    def calculate_next_known_light_wp(self):
+        return -1
 
 
     def current_pose_cb(self, msg):
