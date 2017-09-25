@@ -36,7 +36,7 @@ class TLDetector(object):
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color',            Image,             self.image_cb)
 
-        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+        self.upcoming_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge           = CvBridge()
         self.light_classifier = TLClassifier()
@@ -73,15 +73,15 @@ class TLDetector(object):
 
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state =  self.state
-            if state == TrafficLight.RED or state == TrafficLight.YELLOW:
+            if state == TrafficLight.GREEN:
                 light_wp = light_wp
             else:
                 light_wp = -1
             self.last_wp = light_wp
-            self.upcoming_red_light_pub.publish(Int32(light_wp))
+            self.upcoming_light_pub.publish(Int32(light_wp))
 
         else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            self.upcoming_light_pub.publish(Int32(self.last_wp))
 
         self.state_count += 1
 
@@ -91,8 +91,8 @@ class TLDetector(object):
 
 
     def get_closest_waypoint(self, pose, waypoints):
-        closest_dist = 10000.0 
-        closest_wp   = 0
+        closest_dist = float('inf')
+        closest_wp   = None
 
         for i in range(len(waypoints)):
             dist = self.distance(pose.position.x, pose.position.y,
@@ -111,8 +111,7 @@ class TLDetector(object):
         wp_y       = waypoints[closest_wp].pose.pose.position.y
         heading    = math.atan2( (wp_y-pose.position.y), (wp_x-pose.position.x) )
         angle      = abs(pose.position.z-heading)
-
-        if angle > math.pi/4:
+        if angle > math.pi / 4.0:
             closest_wp += 1
 
         return closest_wp
