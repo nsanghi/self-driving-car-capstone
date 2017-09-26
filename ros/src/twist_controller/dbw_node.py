@@ -34,7 +34,7 @@ class DBWNode(object):
 
 
     def loop(self):
-        if hasattr(self, 'twist_cmd') and hasattr(self, 'current_velocity') and self.dbw_enabled:
+        if hasattr(self, 'twist_cmd') and hasattr(self, 'current_velocity'):
             params = {
                 'twist_cmd':        self.twist_cmd,
                 'current_velocity': self.current_velocity,

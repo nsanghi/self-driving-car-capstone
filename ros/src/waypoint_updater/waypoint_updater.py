@@ -10,13 +10,10 @@ from   styx_msgs.msg     import Lane, Waypoint, TrafficLightArray
 from   std_msgs.msg      import Int32, Float32
 
 
-RATE            = 10
-DEFAULT_MPH     = 10.0
-LOOKAHEAD_WPS   = 500
-MIN_ACCEL_COEF  = 0.0
-MAX_ACCEL_COEF  = 0.5
-MIN_BRAKE_COEF  = 1.6 
-MAX_BRAKE_COEF  = 2.2 
+RATE           = 10
+DEFAULT_MPH    = 10.0
+LOOKAHEAD_WPS  = 500
+THRESHOLD_COEF = 2.8
 
 
 class WaypointUpdater(object):
@@ -116,55 +113,43 @@ class WaypointUpdater(object):
                 closest_index = light_index
                 closest_dist  = dist
 
-        # Default speed handling
+        # Default speed handling and threshold
         ss = DEFAULT_MPH * 0.44704
         if hasattr(self, 'set_speed'):
             ss = self.set_speed
+        threshold = ss * THRESHOLD_COEF
 
-        # Min and max detection distances
-        min_accel = self.current_velocity * MIN_ACCEL_COEF
-        max_accel = self.current_velocity * MAX_ACCEL_COEF
-        min_brake = self.current_velocity * MIN_BRAKE_COEF
-        max_brake = self.current_velocity * MAX_BRAKE_COEF
-
-        # Helpful variables for control
-        sp = None
-        tw = self.traffic_waypoint
-        br = self.braking
-
+        # Handy green variable
         green = True
-        if tw == -1:
+        if self.traffic_waypoint == -1:
             green = False
             
         # Logic to control actions
-        if min_brake < closest_dist < max_brake and br == False and green == False:
-            rospy.logwarn('1. Initiating braking       ({:07.2f} / {})'.format(closest_dist, tw))
-            sp = [0.0 for i in range(LOOKAHEAD_WPS)]
+        sp = 0.0
+        if closest_dist > threshold: 
+            rospy.logwarn('Cruising')
+            self.braking = False
+            sp = ss
+        elif closest_dist < threshold and self.braking == False and green == False:
+            rospy.logwarn('Braking')
             self.braking = True
-        elif min_brake < closest_dist < max_brake and br == False and green == True:
-            rospy.logwarn('2. Cruising through green   ({:07.2f} / {})'.format(closest_dist, tw))
-            sp = [ss for i in range(LOOKAHEAD_WPS)]
-            self.braking = False
-        elif min_brake < closest_dist < max_brake and br == True and green == True:
-            rospy.logwarn('3. Cruising through green   ({:07.2f} / {})'.format(closest_dist, tw))
-            sp = [ss for i in range(LOOKAHEAD_WPS)]
-            self.braking = False
-        elif min_brake < closest_dist < max_brake and br == True and green == False:
-            rospy.logwarn('4. Continuing braking       ({:07.2f} / {})'.format(closest_dist, tw))
-            sp = [0.0 for i in range(LOOKAHEAD_WPS)]
+            sp = 0.0 
+        elif closest_dist < threshold and self.braking == True and green == False:
+            rospy.logwarn('More braking')
             self.braking = True
-        elif min_accel < closest_dist < max_accel and br == False:
-            rospy.logwarn('5. Cruising through green   ({:07.2f} / {})'.format(closest_dist, tw))
-            sp = [ss for i in range(LOOKAHEAD_WPS)]
+            sp = 0.0 
+        elif closest_dist < threshold and self.braking == False and green == True:
+            rospy.logwarn('Continuing')
             self.braking = False
-        elif min_accel < closest_dist < max_accel and br == True:
-            rospy.logwarn('6. Accelerating from stop   ({:07.2f} / {})'.format(closest_dist, tw))
-            sp = [ss for i in range(LOOKAHEAD_WPS)]
+            sp = ss
+        elif closest_dist < threshold and self.braking == True and green == True:
+            rospy.logwarn('Resuming')
             self.braking = False
+            sp = ss 
         else:
-            rospy.logwarn('7. Maintaining acceleration ({:07.2f} / {})'.format(closest_dist, tw))
-            sp = [ss for i in range(LOOKAHEAD_WPS)]
+            rospy.logwarn('Default')
             self.braking = False
+            sp = ss
 
         # Create forward list of waypoints 
         for i in range(nearest_index, nearest_index + LOOKAHEAD_WPS):
@@ -173,7 +158,7 @@ class WaypointUpdater(object):
 
         # Set the speed
         for i in range(len(lane.waypoints)):
-            lane.waypoints[i].twist.twist.linear.x = sp[i]
+            lane.waypoints[i].twist.twist.linear.x = sp
 
         self.final_waypoints_pub.publish(lane)
 
