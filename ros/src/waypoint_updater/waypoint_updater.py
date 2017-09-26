@@ -127,7 +127,7 @@ class WaypointUpdater(object):
         # Logic to control actions
         sp = 0.0
         if closest_dist > threshold: 
-            rospy.logwarn('Cruising')
+            rospy.logwarn('Cruising NI: ' + str(nearest_index))
             self.braking = False
             sp = ss
         elif closest_dist < threshold and self.braking == False and green == False:
