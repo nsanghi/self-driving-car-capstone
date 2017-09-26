@@ -5,14 +5,14 @@ import math
 import yaml
 import time
 import tf
-from   copy              import deepcopy
+from   cPickle           import loads, dumps
 from   geometry_msgs.msg import PoseStamped, TwistStamped
 from   styx_msgs.msg     import Lane, Waypoint, TrafficLightArray
 from   std_msgs.msg      import Int32, Float32
 
 
 RATE           = 10
-LOOKAHEAD_WPS  = 500
+LOOKAHEAD_WPS  = 200
 THRESHOLD_COEF = 2.8
 
 
@@ -131,20 +131,12 @@ class WaypointUpdater(object):
             rospy.logwarn('Cruising')
             self.braking = False
             sp = ss
-        elif closest_dist < threshold and self.braking == False and green == False:
+        elif closest_dist < threshold and green == False:
             rospy.logwarn('Braking')
             self.braking = True
             sp = 0.0 
-        elif closest_dist < threshold and self.braking == True and green == False:
-            rospy.logwarn('More braking')
-            self.braking = True
-            sp = 0.0 
-        elif closest_dist < threshold and self.braking == False and green == True:
-            rospy.logwarn('Continuing')
-            self.braking = False
-            sp = ss
-        elif closest_dist < threshold and self.braking == True and green == True:
-            rospy.logwarn('Resuming')
+        elif closest_dist < threshold and green == True:
+            rospy.logwarn('Accelerating')
             self.braking = False
             sp = ss 
         else:
@@ -154,9 +146,9 @@ class WaypointUpdater(object):
 
         # Create forward list of waypoints 
         for i in range(nearest_index, nearest_index + LOOKAHEAD_WPS):
-            index = i % len(wpts)
-            w = deepcopy(wpts[index])
-            lane.waypoints.append(w)
+            idx = i % len(wpts)
+            wpt = loads(dumps(wpts[idx], -1))
+            lane.waypoints.append(wpt)
 
         # Set the speed
         for i in range(len(lane.waypoints)):

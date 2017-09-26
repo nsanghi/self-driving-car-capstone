@@ -6,6 +6,10 @@ from   lowpass        import LowPassFilter
 from   std_msgs.msg   import Float32
 
 
+THROTTLE_CONST = 0.4
+BRAKE_CONST    = 2.5
+
+
 class Controller(object):
 
     def __init__(self, rate):
@@ -82,12 +86,12 @@ class Controller(object):
         # If PID implies acceleration
         if control > 0:
             throttle = max(0.0, control)
-            throttle = self.soft_scale(throttle, 0.4, 1.0)
+            throttle = self.soft_scale(throttle, THROTTLE_CONST, 1.0)
 
         # If PID implies deceleration
         else:
             brake = max(0.0, -control) 
-            brake = self.soft_scale(brake, 1.5, self.max_torque) 
+            brake = self.soft_scale(brake, BRAKE_CONST, self.max_torque) 
 
         # Steering desired and current yaw estimates
         desired_steering = self.yaw_control.get_steering(desired_linear_velocity, desired_angular_velocity)
