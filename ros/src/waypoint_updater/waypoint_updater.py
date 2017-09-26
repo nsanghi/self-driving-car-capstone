@@ -5,6 +5,7 @@ import math
 import yaml
 import time
 import tf
+from   copy              import deepcopy
 from   geometry_msgs.msg import PoseStamped, TwistStamped
 from   styx_msgs.msg     import Lane, Waypoint, TrafficLightArray
 from   std_msgs.msg      import Int32, Float32
@@ -35,7 +36,6 @@ class WaypointUpdater(object):
         # Initialize constants
         self.traffic_waypoint = -1 
         self.current_velocity =  0.0
-        self.new_waypoints    =  False
         self.braking          =  False
 
         # Load traffic light stopping positions
@@ -71,14 +71,11 @@ class WaypointUpdater(object):
 
     def loop(self):
 
-        # If we do not have fresh waypoints then do not process further
-        if self.new_waypoints == False:
-            pass
-
         # Create lane
         lane                 = Lane()
         lane.header.stamp    = rospy.Time().now()
         lane.header.frame_id = '/world'
+        lane.waypoints       = []
 
         # Define pose and waypoints
         wpts = self.base_waypoints.waypoints
@@ -158,14 +155,14 @@ class WaypointUpdater(object):
         # Create forward list of waypoints 
         for i in range(nearest_index, nearest_index + LOOKAHEAD_WPS):
             index = i % len(wpts)
-            lane.waypoints.append(wpts[index])
+            w = deepcopy(wpts[index])
+            lane.waypoints.append(w)
 
         # Set the speed
         for i in range(len(lane.waypoints)):
             lane.waypoints[i].twist.twist.linear.x = sp
 
         self.final_waypoints_pub.publish(lane)
-        self.new_waypoints = False
 
 
     def current_pose_cb(self, msg):
@@ -178,7 +175,6 @@ class WaypointUpdater(object):
 
     def base_waypoints_cb(self, msg):
         self.base_waypoints = msg
-        self.new_waypoints  = True
 
 
     def traffic_waypoint_cb(self, msg):
