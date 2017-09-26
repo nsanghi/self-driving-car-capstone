@@ -11,7 +11,6 @@ from   std_msgs.msg      import Int32, Float32
 
 
 RATE           = 10
-DEFAULT_MPH    = 10.0
 LOOKAHEAD_WPS  = 500
 THRESHOLD_COEF = 2.8
 
@@ -36,6 +35,7 @@ class WaypointUpdater(object):
         # Initialize constants
         self.traffic_waypoint = -1 
         self.current_velocity =  0.0
+        self.new_waypoints    =  False
         self.braking          =  False
 
         # Load traffic light stopping positions
@@ -56,7 +56,7 @@ class WaypointUpdater(object):
             for i in range(len(wpts)):
                 p = light_pos
                 q = wpts[i].pose.pose.position
-                d = math.sqrt((p[0] - q.x)**2 + (p[1] - q.y)**2)
+                d = math.sqrt((p[0]-q.x)**2 + (p[1]-q.y)**2)
                 if d < closest_distance:
                     closest_distance = d
                     closest_index    = i
@@ -70,6 +70,10 @@ class WaypointUpdater(object):
 
 
     def loop(self):
+
+        # If we do not have fresh waypoints then do not process further
+        if self.new_waypoints == False:
+            pass
 
         # Create lane
         lane                 = Lane()
@@ -114,7 +118,7 @@ class WaypointUpdater(object):
                 closest_dist  = dist
 
         # Default speed handling and threshold
-        ss = DEFAULT_MPH * 0.44704
+        ss = wpts[nearest_index].twist.twist.linear.x
         if hasattr(self, 'set_speed'):
             ss = self.set_speed
         threshold = ss * THRESHOLD_COEF
@@ -127,7 +131,7 @@ class WaypointUpdater(object):
         # Logic to control actions
         sp = 0.0
         if closest_dist > threshold: 
-            rospy.logwarn('Cruising NI: ' + str(nearest_index))
+            rospy.logwarn('Cruising')
             self.braking = False
             sp = ss
         elif closest_dist < threshold and self.braking == False and green == False:
@@ -161,6 +165,7 @@ class WaypointUpdater(object):
             lane.waypoints[i].twist.twist.linear.x = sp
 
         self.final_waypoints_pub.publish(lane)
+        self.new_waypoints = False
 
 
     def current_pose_cb(self, msg):
@@ -173,6 +178,7 @@ class WaypointUpdater(object):
 
     def base_waypoints_cb(self, msg):
         self.base_waypoints = msg
+        self.new_waypoints  = True
 
 
     def traffic_waypoint_cb(self, msg):
