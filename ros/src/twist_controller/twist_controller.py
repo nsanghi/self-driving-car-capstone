@@ -37,8 +37,8 @@ class Controller(object):
         self.pid_steering = PID(0.42, 0.12, 0.05)
 
         # Steering LPFs
-        self.lpf_pre  = LowPassFilter(0.05, self.interval)
-        self.lpf_post = LowPassFilter(0.35, self.interval)
+        self.lpf_pre  = LowPassFilter(0.1, self.interval)
+        self.lpf_post = LowPassFilter(0.25, self.interval)
 
         # Yaw controller
         self.yaw_control = YawController(self.wheel_base, self.steer_ratio)

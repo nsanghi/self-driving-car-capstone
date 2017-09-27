@@ -11,9 +11,8 @@ from   styx_msgs.msg     import Lane, Waypoint, TrafficLightArray
 from   std_msgs.msg      import Int32, Float32
 
 
-RATE           = 10
-LOOKAHEAD_WPS  = 200
-THRESHOLD_COEF = 2.8
+RATE          = 10
+LOOKAHEAD_WPS = 500
 
 
 class WaypointUpdater(object):
@@ -118,7 +117,7 @@ class WaypointUpdater(object):
         ss = wpts[nearest_index].twist.twist.linear.x
         if hasattr(self, 'set_speed'):
             ss = self.set_speed
-        threshold = ss * THRESHOLD_COEF
+        threshold = self.compute_threshold(ss)
 
         # Handy green variable
         green = True
@@ -156,6 +155,18 @@ class WaypointUpdater(object):
 
         self.final_waypoints_pub.publish(lane)
 
+
+    def compute_threshold(self, speed):
+        if speed > 10:
+            return 25
+        if speed > 7:
+            return 20
+        if speed > 4: 
+            return 14
+        if speed > 2:
+            return 9
+        return 4
+      
 
     def current_pose_cb(self, msg):
         self.current_pose = msg
