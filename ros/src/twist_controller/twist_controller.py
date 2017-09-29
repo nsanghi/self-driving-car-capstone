@@ -33,12 +33,12 @@ class Controller(object):
         self.last_time = rospy.get_time()
 
         # PID controllers
-        self.pid_control  = PID(0.3, 0.15, 0.0)
+        self.pid_control  = PID(5.0, 0.05, 0.0)
         self.pid_steering = PID(0.42, 0.12, 0.05)
 
         # Steering LPFs
-        self.lpf_pre  = LowPassFilter(0.1, self.interval)
-        self.lpf_post = LowPassFilter(0.25, self.interval)
+        self.lpf_pre  = LowPassFilter(0.15, self.interval)
+        self.lpf_post = LowPassFilter(0.45, self.interval)
 
         # Yaw controller
         self.yaw_control = YawController(self.wheel_base, self.steer_ratio)
@@ -75,6 +75,9 @@ class Controller(object):
             self.pid_control.reset()
             self.pid_steering.reset() 
 
+        # Update steering coefficients based on speed
+        self.update_steering(current_linear_velocity)
+
         # Throttle and brake PID
         velocity_error = desired_linear_velocity - current_linear_velocity
         control        = self.pid_control.update(velocity_error, interval)
@@ -105,6 +108,30 @@ class Controller(object):
         steering = self.bound(steering, self.max_steer_angle)
 
         return throttle, brake, steering
+
+
+    # Update steering parameters
+    def update_steering(self, velocity):
+        if velocity > 10:
+            self.pid_steering.set(0.30, 0.2, 0.0)
+            self.lpf_pre.set(0.01)
+            self.lpf_post.set(0.01)
+        elif velocity > 7:
+            self.pid_steering.set(0.33, 0.18, 0.0)
+            self.lpf_pre.set(0.03)
+            self.lpf_post.set(0.05)
+        elif velocity > 4: 
+            self.pid_steering.set(0.36, 0.16, 0.0)
+            self.lpf_pre.set(0.07)
+            self.lpf_post.set(0.15)
+        elif velocity > 2:
+            self.pid_steering.set(0.38, 0.14, 0.02)
+            self.lpf_pre.set(0.10)
+            self.lpf_post.set(0.35)
+        else:
+            self.pid_steering.set(0.42, 0.12, 0.05)
+            self.lpf_pre.set(0.15)
+            self.lpf_post.set(0.45)
 
 
     # Symmetric bounding constraint applied to a value
