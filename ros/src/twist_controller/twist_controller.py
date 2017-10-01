@@ -113,19 +113,19 @@ class Controller(object):
     # Update steering parameters
     def update_steering(self, velocity):
         if velocity > 10:
-            self.pid_steering.set(0.30, 0.2, 0.0)
-            self.lpf_pre.set(0.01)
-            self.lpf_post.set(0.01)
+            self.pid_steering.set(0.45, 0.50, 0.01)
+            self.lpf_pre.set(0.02)
+            self.lpf_post.set(0.04)
         elif velocity > 7:
-            self.pid_steering.set(0.33, 0.18, 0.0)
+            self.pid_steering.set(0.44, 0.40, 0.01)
             self.lpf_pre.set(0.03)
-            self.lpf_post.set(0.05)
+            self.lpf_post.set(0.10)
         elif velocity > 4: 
-            self.pid_steering.set(0.36, 0.16, 0.0)
+            self.pid_steering.set(0.43, 0.30, 0.01)
             self.lpf_pre.set(0.07)
             self.lpf_post.set(0.15)
         elif velocity > 2:
-            self.pid_steering.set(0.38, 0.14, 0.02)
+            self.pid_steering.set(0.42, 0.20, 0.02)
             self.lpf_pre.set(0.10)
             self.lpf_post.set(0.35)
         else:
